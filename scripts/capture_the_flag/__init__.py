@@ -85,7 +85,7 @@ class CaptureTheFlagScript(ServerScript):
         self.flag_red = Flag(s, self.flag_pole_pos_red, c)
         self.flag_pole_red = Flagpole(s, self.flag_pole_pos_red, c)
         c = s.create_color(0.0, 0.0, 1.0, 1.0)
-        self.flag_red = Flag(s, self.flag_pole_pos_blue, c)
+        self.flag_blue = Flag(s, self.flag_pole_pos_blue, c)
         self.flag_pole_blue = Flagpole(s, self.flag_pole_pos_blue, c)
     
     def update(self, event):

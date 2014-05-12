@@ -102,6 +102,7 @@ class Flag(object):
     def __init__(self, server, pos, color):
         self.server = server
         self.__particle = server.create_particle_effect()
+        self.carrier = None
         p = self.__particle
         p.data.pos = pos
         p.data.accel = Vector3(0.0, 0.0, 2.0)
