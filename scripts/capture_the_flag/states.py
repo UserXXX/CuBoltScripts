@@ -31,14 +31,22 @@ Game states.
 import math
 
 
+from cuwo.packet import SoundAction
+
+
 ENTITY_HOSTILITY_FRIENDLY_PLAYER = 0
 ENTITY_HOSTILITY_HOSTILE = 1
+
+
+SOUND_MISSION_COMPLETE = 30
+SOUND_EXPLOSION = 81
 
 
 DEFAULT_REPLY = ('This command cannot be issued in the current state ' +
     'of the game.')
 FLAG_POLE_DISTANCE = 500000
 FLAG_CAPTURE_DISTANCE = 150000
+HEAL_AMOUNT = 50000
 
 
 class GameState(object):
@@ -144,7 +152,10 @@ class GameRunningState(GameState):
         em.set_hostility_all(True, ENTITY_HOSTILITY_HOSTILE)
         self.__make_friendly(self.__red)
         self.__make_friendly(self.__blue)
+        for e in self.server.entity_list.itervalues():
+            e.heal(HEAL_AMOUNT)
         self.server.send_chat('Go!')
+        self.__play_sound(SOUND_EXPLOSION)
         
     def __make_friendly(self, players):
         em = self.server.entity_manager
@@ -152,6 +163,15 @@ class GameRunningState(GameState):
             for p2 in players:
                 em.set_hostility_id(p1.entity_id, p2.entity_id,
                     False, ENTITY_HOSTILITY_FRIENDLY_PLAYER)
+                    
+    def __play_sound(self, index):
+        for p in self.server.players.values():
+            sound = SoundAction()
+            sound.sound_index = index
+            sound.pitch = 1.0
+            sound.volume = 1.0
+            sound.pos = p.position
+            self.server.update_packet.sound_actions.append(sound)
         
     def update(self):
         s = self.ctfscript
@@ -162,38 +182,53 @@ class GameRunningState(GameState):
         fpr = s.flag_pole_red
         fpb = s.flag_pole_blue
         
-        #self.__handle_flag(fr, fpb, b, fpr, r, 'Blue team wins!')
-        #self.__handle_flag(fb, fpr, r, fpb, b, 'Red team wins!')
         pb = self.__handle_team(r, b, fr, fpr, fpb)
         pr = self.__handle_team(b, r, fb, fpb, fpr)
         
         se = self.server
         if pb and pr: # Draw
             se.send_chat('The game ended in a draw!')
+            self.__play_sound(SOUND_MISSION_COMPLETE)
             s.game_state = PreGameState(se, s)
         elif pb: # Blue wins
             se.send_chat('Blue team wins!')
             s.game_state = PreGameState(se, s)
+            self.__play_sound(SOUND_MISSION_COMPLETE)
         elif pr: # Red wins
             se.send_chat('Red team wins!')
             s.game_state = PreGameState(se, s)
+            self.__play_sound(SOUND_MISSION_COMPLETE)
         
     def __handle_team(self, team, enemy_team, own_flag,
         own_pole, enemy_pole):
         if own_flag.carrier is None:
             ofp = own_flag.pos
-            for p in team:
-                pos = p.position
-                if self._distance(pos, ofp) < FLAG_CAPTURE_DISTANCE:
-                    own_flag.pos = own_pole.pos
+            if not self._equals(ofp, own_pole.pos):
+                for p in team:
+                    pos = p.position
+                    if self._distance(pos, ofp) < \
+                        FLAG_CAPTURE_DISTANCE:
+                        own_flag.pos = own_pole.pos
+                        fn = own_flag.name
+                        s = self.server
+                        s.send_chat(('The %s flag has been ' +
+                            'resetted!') % fn)
+                        break
             for p in enemy_team:
                 pos = p.position
                 if self._distance(pos, ofp) < FLAG_CAPTURE_DISTANCE:
                     own_flag.carrier = p
+                    fn = own_flag.name
+                    n = p.entity_data.name
+                    s = self.server
+                    s.send_chat('%s picked up the %s flag!' % (n, fn))
                     break
         if own_flag.carrier is not None:
-            if own_flag.carrier.entity_data.hp <= 0: # Carrier was killed
+            if own_flag.carrier.entity_data.hp <= 0:
+                # Carrier was killed
                 own_flag.carrier = None
+                fn = own_flag.name
+                self.server.send_chat('The %s flag got dropped!' % fn)
                 return False
             else:
                 p = own_flag.carrier.position  
@@ -206,30 +241,6 @@ class GameRunningState(GameState):
                     return False
         else:
             return False
-    
-    """
-    def __handle_flag(self, flag, pole, team, enemy_pole, enemies,
-        victory_msg):
-        if flag.carrier is None:
-            fp = flag.pos
-            for p in team:
-                pos = p.position
-                if self._distance(pos, fp) < FLAG_CAPTURE_DISTANCE:
-                    flag.pos = pole.pos
-            for p in enemies:
-                pos = p.position
-                if self._distance(pos, fp) < FLAG_CAPTURE_DISTANCE:
-                    flag.carrier = p
-                    flag.pos = flag.carrier.position
-        else:
-            if flag.carrier.hp <= 0:
-                flag.carrier = None
-            else:
-                p = flag.carrier.position
-                flag.pos = p
-                ep = enemy_pole.pos
-                if self._distance(p, ep) < FLAG_CAPTURE_DISTANCE:
-                    s = self.server
-                    s.send_chat(victory_msg)
-                    ctf = self.ctfscript
-                    ctf.game_state = PreGameState(s, ctf)"""
+            
+    def _equals(self, v1, v2):
+        return v1.x == v2.x and v1.y == v2.y and v1.z == v2.z

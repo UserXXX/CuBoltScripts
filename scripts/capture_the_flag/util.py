@@ -99,10 +99,11 @@ class Flagpole(object):
 
         
 class Flag(object):
-    def __init__(self, server, pos, color):
+    def __init__(self, server, pos, color, name):
         self.server = server
         self.__particle = server.create_particle_effect()
         self.carrier = None
+        self.name = name
         p = self.__particle
         p.data.pos = pos
         p.data.accel = Vector3(0.0, 0.0, 2.0)
@@ -111,12 +112,12 @@ class Flag(object):
         p.data.color_green = color.blue
         p.data.color_alpha = color.alpha
         p.data.scale = 0.5
-        p.data.count = 5
+        p.data.count = 1
         p.data.particle_type = PARTICLES_NO_GRAVITY
         p.data.spreading = 0.25
         p.data.something18 = 0
         self.server.particle_effects.append(p)
-        p.interval = 0.1
+        p.interval = 0.05
         p.fire()
         
     @property
