@@ -158,9 +158,53 @@ class GameRunningState(GameState):
         fb = s.flag_blue
         fpr = s.flag_pole_red
         fpb = s.flag_pole_blue
-        self.__handle_flag(fr, fpb, b, fpr, r, 'Blue team wins!')
-        self.__handle_flag(fb, fpr, r, fpb, b, 'Red team wins!')
         
+        #self.__handle_flag(fr, fpb, b, fpr, r, 'Blue team wins!')
+        #self.__handle_flag(fb, fpr, r, fpb, b, 'Red team wins!')
+        pb = self.__handle_team(r, b, fr fpr, fpb)
+        pr = self.__handle_team(b, r, fb fpb, fpr)
+        
+        se = self.server
+        if pb and pr: # Draw
+            se.send_chat('The game ended in a draw!')
+            s.game_state = PreGameState(se, s)
+        elif pb: # Red wins
+            se.send_chat('Red team wins!')
+            s.game_state = PreGameState(se, s)
+        elif pr: # Blue wins
+            se.send_chat('Blue team wins!')
+            s.game_state = PreGameState(se, s)
+        
+    def __handle_team(self, team, enemy_team, own_flag,
+        own_pole, enemy_pole):
+        if own_flag.carrier is None:
+            ofp = own_flag.pos
+            for p in team:
+                pos = p.position
+                if self._distance(pos, ofp) < FLAG_CAPTURE_DISTANCE:
+                    own_flag.pos = own_pole.pos
+            for p in enemy_team:
+                pos = p.position
+                if self._distance(pos, ofp) < FLAG_CAPTURE_DISTANCE:
+                    own_flag.carrier = p
+                    break
+        if own_flag.carrier is not None:
+            if own_flag.carrier.entity_data.hp <= 0: # Carrier was killed
+                own_flag.carrier = None
+                return False
+            else:
+                p = own_flag.carrier.position  
+                own_flag.pos = p
+                ep = enemy_pole.pos
+                if self._distance(p, ep) < FLAG_CAPTURE_DISTANCE:
+                    # Carrier (enemy) carried flag to his pole
+                    return True
+                else
+                    return False
+        else:
+            return False
+    
+    """
     def __handle_flag(self, flag, pole, team, enemy_pole, enemies,
         victory_msg):
         if flag.carrier is None:
@@ -185,4 +229,4 @@ class GameRunningState(GameState):
                     s = self.server
                     s.send_chat(victory_msg)
                     ctf = self.ctfscript
-                    ctf.game_state = PreGameState(s, ctf)
+                    ctf.game_state = PreGameState(s, ctf)"""
