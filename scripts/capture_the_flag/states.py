@@ -38,7 +38,7 @@ ENTITY_HOSTILITY_HOSTILE = 1
 DEFAULT_REPLY = ('This command cannot be issued in the current state ' +
     'of the game.')
 FLAG_POLE_DISTANCE = 500000
-FLAG_CAPTURE_DISTANCE = 50000
+FLAG_CAPTURE_DISTANCE = 150000
 
 
 class GameState(object):
@@ -64,7 +64,9 @@ class PreGameState(GameState):
         GameState.__init__(self, server, ctfscript)
         self.__match_mode = 'autobalance'
         ctfscript.flag_red.pos = ctfscript.flag_pole_pos_red
+        ctfscript.flag_red.carrier = None
         ctfscript.flag_blue.pos = ctfscript.flag_pole_pos_blue
+        ctfscript.flag_blue.carrier = None
         server.entity_manager.set_hostility_all(False,
             ENTITY_HOSTILITY_FRIENDLY_PLAYER)
         
@@ -79,6 +81,7 @@ class PreGameState(GameState):
             blue = []
             self.__autobalance(red, blue)
 
+            self.server.send_chat('The game is about to begin!')
             self.__send_chat('Please go to the red base.', red)
             self.__send_chat('Please go to the blue base.', blue)
             ctf = self.ctfscript
@@ -161,18 +164,18 @@ class GameRunningState(GameState):
         
         #self.__handle_flag(fr, fpb, b, fpr, r, 'Blue team wins!')
         #self.__handle_flag(fb, fpr, r, fpb, b, 'Red team wins!')
-        pb = self.__handle_team(r, b, fr fpr, fpb)
-        pr = self.__handle_team(b, r, fb fpb, fpr)
+        pb = self.__handle_team(r, b, fr, fpr, fpb)
+        pr = self.__handle_team(b, r, fb, fpb, fpr)
         
         se = self.server
         if pb and pr: # Draw
             se.send_chat('The game ended in a draw!')
             s.game_state = PreGameState(se, s)
-        elif pb: # Red wins
-            se.send_chat('Red team wins!')
-            s.game_state = PreGameState(se, s)
-        elif pr: # Blue wins
+        elif pb: # Blue wins
             se.send_chat('Blue team wins!')
+            s.game_state = PreGameState(se, s)
+        elif pr: # Red wins
+            se.send_chat('Red team wins!')
             s.game_state = PreGameState(se, s)
         
     def __handle_team(self, team, enemy_team, own_flag,
@@ -199,7 +202,7 @@ class GameRunningState(GameState):
                 if self._distance(p, ep) < FLAG_CAPTURE_DISTANCE:
                     # Carrier (enemy) carried flag to his pole
                     return True
-                else
+                else:
                     return False
         else:
             return False

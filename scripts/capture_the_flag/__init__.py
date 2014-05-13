@@ -135,6 +135,7 @@ def setflagpoler(script):
         p = player.position
         pos = Vector3(p.x, p.y, p.z - 50000)
         ctfscript.flag_pole_pos_red = pos
+        ctfscript.flag_red.pos = pos
         return 'Successful set red flag pole position.'
     else:
         return ("The command 'setflagpoler' has to be run by a "
@@ -150,6 +151,7 @@ def setflagpoleb(script):
         p = player.position
         pos = Vector3(p.x, p.y, p.z - 50000)
         ctfscript.flag_pole_pos_blue = pos
+        ctfscript.flag_blue.pos = pos
         return 'Successful set blue flag pole position.'
     else:
         return ("The command 'setflagpoleb' has to be run by a "
