@@ -57,6 +57,9 @@ class GameState(object):
     def update(self):
         pass
         
+    def on_leave(self):
+        pass
+        
     def startgame(self, param1):
         return DEFAULT_REPLY
             
@@ -78,23 +81,24 @@ class PreGameState(GameState):
         server.entity_manager.set_hostility_all(False,
             ENTITY_HOSTILITY_FRIENDLY_PLAYER)
         
-    def startgame(self, match_mode):
+    def startgame(self, match_mode, use_last=False):
         if len(self.server.entity_list) > 1:
-            if match_mode is None or match_mode == '':
-                match_mode = 'autobalance'
+            if not use_last:
+                if match_mode is None or match_mode == '':
+                    match_mode = 'autobalance'
             
-            self.__match_mode = match_mode
+                self.__match_mode = match_mode
             
             red = []
             blue = []
             self.__autobalance(red, blue)
 
-            self.server.send_chat('The game is about to begin!')
             self.__send_chat('Please go to the red base.', red)
             self.__send_chat('Please go to the blue base.', blue)
+            self.server.send_chat('The game is about to begin!')
             ctf = self.ctfscript
             ctf.game_state = GameInitialisingState(self.server,
-                self.ctfscript, red, blue)
+                self.ctfscript, self, red, blue)
             return 'Game starting...'
         else:
             return 'Not enough players to start a match!'
@@ -122,10 +126,11 @@ class PreGameState(GameState):
                
                
 class GameInitialisingState(GameState):
-    def __init__(self, server, ctfscript, red, blue):
+    def __init__(self, server, ctfscript, pre_game_state, red, blue):
         GameState.__init__(self, server, ctfscript)
         self.__red = red
         self.__blue = blue
+        self.__pre_game_state = pre_game_state
         
     def update(self):
         rfpos = self.ctfscript.flag_pole_red.pos
@@ -141,7 +146,14 @@ class GameInitialisingState(GameState):
                 return None
         s.game_state = GameRunningState(self.server, s, self.__red,
             self.__blue)
-       
+            
+    def on_leave(self):
+        s = self.server
+        self.ctfscript.game_state = self.__pre_game_state
+        s.send_chat(self.__pre_game_state.startgame(None, True))
+        s.send_chat(('The game was not started because a player left' +
+            ' the game.'))
+        
        
 class GameRunningState(GameState):
     def __init__(self, server, ctfscript, red, blue):

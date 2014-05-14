@@ -65,6 +65,7 @@ class CaptureTheFlagConnectionScript(ConnectionScript):
         self.parent.entity_id_mapping[self.connection.entity_data] = self.connection.entity_id
     
     def on_unload(self):
+        self.parent.game_state.on_leave()
         del self.parent.entity_id_mapping[self.connection.entity_data]
         
     def on_kill(self, event):
