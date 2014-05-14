@@ -114,7 +114,7 @@ class PreGameState(GameState):
                 blue.append(p)
         
     def player_compare(self, p1, p2):
-        return int(p1.entity_data.level - p2.entity_data.level)
+        return int(p2.entity_data.level - p1.entity_data.level)
                     
     def __send_chat(self, msg, players):
         for p in players:
