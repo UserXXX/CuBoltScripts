@@ -92,12 +92,18 @@ class PreGameState(GameState):
             red = []
             blue = []
             self.__autobalance(red, blue)
+            
+            lm = self.ctfscript.loot_manager
+            lm.new_match()
 
+            server = self.server
+            if lm.loot_enabled:
+                self.server.send_chat(lm.pre_game_message)
             self.__send_chat('Please go to the red base.', red)
             self.__send_chat('Please go to the blue base.', blue)
-            self.server.send_chat('The game is about to begin!')
+            server.send_chat('The game is about to begin!')
             ctf = self.ctfscript
-            ctf.game_state = GameInitialisingState(self.server,
+            ctf.game_state = GameInitialisingState(server,
                 self.ctfscript, self, red, blue)
             return 'Game starting...'
         else:
@@ -206,10 +212,12 @@ class GameRunningState(GameState):
             se.send_chat('Blue team wins!')
             s.game_state = PreGameState(se, s)
             self.__play_sound(SOUND_MISSION_COMPLETE)
+            self.ctfscript.loot_manager.give_loot(self.__blue)
         elif pr: # Red wins
             se.send_chat('Red team wins!')
             s.game_state = PreGameState(se, s)
             self.__play_sound(SOUND_MISSION_COMPLETE)
+            self.ctfscript.loot_manager.give_loot(self.__red)
         
     def __handle_team(self, team, enemy_team, own_flag,
         own_pole, enemy_pole):
@@ -255,4 +263,4 @@ class GameRunningState(GameState):
             return False
             
     def _equals(self, v1, v2):
-        return v1.x == v2.x and v1.y == v2.y and v1.z == v2.z
+        return v1.x == v2.x and v1.y == v2.y and v1.z == v2.z       

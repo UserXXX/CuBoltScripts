@@ -42,6 +42,9 @@ from cuwo.vector import Vector3
 from states import PreGameState
 
 
+from loot import LootManager
+
+
 from util import Flag
 from util import Flagpole
 
@@ -91,6 +94,7 @@ class CaptureTheFlagScript(ServerScript):
         self.entity_id_mapping = {}
         self.__load_settings()
         self.__create_flag_poles()
+        self.loot_manager = LootManager()
         self.game_state = PreGameState(self.server, self)
         
     def __load_settings(self):
