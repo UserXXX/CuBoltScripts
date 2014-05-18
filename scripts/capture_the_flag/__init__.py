@@ -58,6 +58,7 @@ KEY_FLAG_POLE_BLUE_Y = 'flag_pole_blue_y'
 KEY_FLAG_POLE_RED_Y = 'flag_pole_red_y'
 KEY_FLAG_POLE_BLUE_Z = 'flag_pole_blue_z'
 KEY_FLAG_POLE_RED_Z = 'flag_pole_red_z'
+KEY_LOOTING_ENABLED = 'looting_enabled'
 
 
 XP_ON_SAME_LEVEL = 25.0
@@ -95,6 +96,7 @@ class CaptureTheFlagScript(ServerScript):
         self.__load_settings()
         self.__create_flag_poles()
         self.loot_manager = LootManager()
+        self.loot_manager.loot_enabled = self.loot_enabled
         self.game_state = PreGameState(self.server, self)
         
     def __load_settings(self):
@@ -111,6 +113,8 @@ class CaptureTheFlagScript(ServerScript):
             self.__settings[KEY_FLAG_POLE_BLUE_Y] = 0.0
         if KEY_FLAG_POLE_BLUE_Z not in self.__settings:
             self.__settings[KEY_FLAG_POLE_BLUE_Z] = 0.0
+        if KEY_LOOTING_ENABLED not in self.__settings:
+            self.__settings[KEY_LOOTING_ENABLED] = True
             
     def __save_settings(self):
         self.server.save_data(SAVE_FILE, self.__settings)
@@ -160,6 +164,16 @@ class CaptureTheFlagScript(ServerScript):
         self.flag_pole_blue.pos = value
         self.__save_settings()
         
+    @property
+    def loot_enabled(self):
+        return self.__settings[KEY_LOOTING_ENABLED]
+        
+    @loot_enabled.setter
+    def loot_enabled(self, value):
+        self.loot_manager.loot_enabled = value
+        self.__settings[KEY_LOOTING_ENABLED] = value
+        self.__save_settings()
+        
         
 def get_class():
     return CaptureTheFlagScript
@@ -207,12 +221,42 @@ def setflagpoleb(script):
             
 @command
 @admin
+def loot(script, state=None):
+    ctfscript = script.server.scripts.capture_the_flag
+    if state is None:
+        if ctfscript.loot_enabled:
+            return 'Loot is enabled.'
+        else:
+            return 'Loot is disabled.'
+    else:
+        if ctfscript is PreGameState:
+            if state == 'on':
+                if ctfscript.loot_enabled:
+                    return 'Looting is already enabled.'
+                else:
+                    ctfscript.loot_enabled = True
+                    return 'Looting has been enabled.'
+            elif state == 'off':
+                if ctfscript.loot_enabled:
+                    ctfscript.loot_enabled = False
+                    return 'Looting has been disabled.'
+                else:
+                    return 'Looting is already disabled.'
+            else:
+                return 'Unknown prameter: %s' % state
+        else:
+            return 'Looting can only be changed if no game is running.'
+            
+        
+@command
+@admin
 def abortgame(script):
     ctfscript = script.server.scripts.capture_the_flag
     ctfscript.game_state = PreGameState(script.server, ctfscript)
     script.server.send_chat('Game aborted by administrator.')
     return 'Game successfully aborted.'
-            
+
+    
 @command            
 def startgame(script, match_mode='autobalance'):
     ctfscript = script.server.scripts.capture_the_flag
