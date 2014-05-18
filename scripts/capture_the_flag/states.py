@@ -225,24 +225,26 @@ class GameRunningState(GameState):
             ofp = own_flag.pos
             if not self._equals(ofp, own_pole.pos):
                 for p in team:
-                    pos = p.position
-                    if self._distance(pos, ofp) < \
-                        FLAG_CAPTURE_DISTANCE:
-                        own_flag.pos = own_pole.pos
-                        fn = own_flag.name
-                        s = self.server
-                        s.send_chat(('The %s flag has been ' +
-                            'resetted!') % fn)
-                        break
+                    if p.entity_data.hp > 0:
+                        pos = p.position
+                        if self._distance(pos, ofp) < \
+                            FLAG_CAPTURE_DISTANCE:
+                            own_flag.pos = own_pole.pos
+                            fn = own_flag.name
+                            s = self.server
+                            s.send_chat(('The %s flag has been ' +
+                                'resetted!') % fn)
+                            break
             for p in enemy_team:
-                pos = p.position
-                if self._distance(pos, ofp) < FLAG_CAPTURE_DISTANCE:
-                    own_flag.carrier = p
-                    fn = own_flag.name
-                    n = p.entity_data.name
-                    s = self.server
-                    s.send_chat('%s picked up the %s flag!' % (n, fn))
-                    break
+                if p.entity_data.hp > 0:
+                    pos = p.position
+                    if self._distance(pos, ofp) < FLAG_CAPTURE_DISTANCE:
+                        own_flag.carrier = p
+                        fn = own_flag.name
+                        n = p.entity_data.name
+                        s = self.server
+                        s.send_chat('%s picked up the %s flag!' % (n, fn))
+                        break
         if own_flag.carrier is not None:
             if own_flag.carrier.entity_data.hp <= 0:
                 # Carrier was killed
