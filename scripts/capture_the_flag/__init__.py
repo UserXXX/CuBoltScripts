@@ -99,6 +99,10 @@ class CaptureTheFlagScript(ServerScript):
         self.loot_manager.loot_enabled = self.loot_enabled
         self.game_state = PreGameState(self.server, self)
         
+    def on_unload(self):
+        self.flag_pole_red.dispose()
+        self.flag_pole_blue.dispose()
+        
     def __load_settings(self):
         self.__settings = self.server.load_data(SAVE_FILE, {})
         if KEY_FLAG_POLE_RED_X not in self.__settings:
@@ -258,6 +262,14 @@ def abortgame(script):
 
     
 @command            
-def startgame(script, match_mode='autobalance'):
+def startgame(script, match_mode='autobalance', point_count='1'):
     ctfscript = script.server.scripts.capture_the_flag
-    return ctfscript.game_state.startgame(match_mode)
+    p = None
+    try:
+        p = int(point_count)
+    except ValueError:
+        p = None
+    if p is None:
+        return 'Could not parse %s.' % point_count
+    else:
+        return ctfscript.game_state.startgame(match_mode, p)

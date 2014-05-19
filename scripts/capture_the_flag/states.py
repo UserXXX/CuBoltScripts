@@ -38,7 +38,10 @@ ENTITY_HOSTILITY_FRIENDLY_PLAYER = 0
 ENTITY_HOSTILITY_HOSTILE = 1
 
 
+SOUND_LEVEL_UP = 29
 SOUND_MISSION_COMPLETE = 30
+SOUND_LICH_SCREAM = 43
+SOUND_GATE = 51
 SOUND_EXPLOSION = 81
 
 
@@ -81,7 +84,7 @@ class PreGameState(GameState):
         server.entity_manager.set_hostility_all(False,
             ENTITY_HOSTILITY_FRIENDLY_PLAYER)
         
-    def startgame(self, match_mode, use_last=False):
+    def startgame(self, match_mode, point_count, use_last=False):
         if len(self.server.entity_list) > 1:
             if not use_last:
                 if match_mode is None or match_mode == '':
@@ -104,7 +107,7 @@ class PreGameState(GameState):
             server.send_chat('The game is about to begin!')
             ctf = self.ctfscript
             ctf.game_state = GameInitialisingState(server,
-                self.ctfscript, self, red, blue)
+                self.ctfscript, self, red, blue, point_count)
             return 'Game starting...'
         else:
             return 'Not enough players to start a match!'
@@ -132,11 +135,13 @@ class PreGameState(GameState):
                
                
 class GameInitialisingState(GameState):
-    def __init__(self, server, ctfscript, pre_game_state, red, blue):
+    def __init__(self, server, ctfscript, pre_game_state, red, blue,
+        points):
         GameState.__init__(self, server, ctfscript)
         self.__red = red
         self.__blue = blue
         self.__pre_game_state = pre_game_state
+        self.__points = points
         
     def update(self):
         rfpos = self.ctfscript.flag_pole_red.pos
@@ -151,21 +156,25 @@ class GameInitialisingState(GameState):
             if self._distance(pos, bfpos) > FLAG_POLE_DISTANCE:
                 return None
         s.game_state = GameRunningState(self.server, s, self.__red,
-            self.__blue)
+            self.__blue, self.__points)
             
     def on_leave(self):
         s = self.server
         self.ctfscript.game_state = self.__pre_game_state
-        s.send_chat(self.__pre_game_state.startgame(None, True))
+        s.send_chat(self.__pre_game_state.startgame(None,
+            self.__points, True))
         s.send_chat(('The game was not started because a player left' +
             ' the game.'))
         
        
 class GameRunningState(GameState):
-    def __init__(self, server, ctfscript, red, blue):
+    def __init__(self, server, ctfscript, red, blue, points):
         GameState.__init__(self, server, ctfscript)
         self.__red = red
         self.__blue = blue
+        self.__points_needed = points
+        self.__points_blue = 0
+        self.__points_red = 0
         em = self.server.entity_manager
         em.set_hostility_all(True, ENTITY_HOSTILITY_HOSTILE)
         self.__make_friendly(self.__red)
@@ -200,24 +209,42 @@ class GameRunningState(GameState):
         fpr = s.flag_pole_red
         fpb = s.flag_pole_blue
         
-        pb = self.__handle_team(r, b, fr, fpr, fpb)
-        pr = self.__handle_team(b, r, fb, fpb, fpr)
-        
         se = self.server
-        if pb and pr: # Draw
-            se.send_chat('The game ended in a draw!')
+        
+        if self.__handle_team(r, b, fr, fpr, fpb):
+            self.__points_blue = self.__points_blue + 1
+            if self.__points_blue < self.__points_needed:
+                se.send_chat('Red: %i' % self.__points_red)
+                se.send_chat('Blue: %i' % self.__points_blue)
+                se.send_chat('The current score is:')
+                se.send_chat('The blue team got one point!')
+                self.__play_sound(SOUND_LEVEL_UP)
+                fr.carrier = None
+                fr.pos = fpr.pos
+        if self.__handle_team(b, r, fb, fpb, fpr):
+            self.__points_red = self.__points_red + 1
+            if self.__points_red < self.__points_needed:
+                se.send_chat('Red: %i' % self.__points_red)
+                se.send_chat('Blue: %i' % self.__points_blue)
+                se.send_chat('The current score is:')
+                se.send_chat('The red team got one point!')
+                self.__play_sound(SOUND_LEVEL_UP)
+                fb.carrier = None
+                fb.pos = fpb.pos
+        
+        pb = self.__points_blue >= self.__points_needed
+        pr = self.__points_red >= self.__points_needed
+        if pb or pr:
+            if pr: # Red wins
+                se.send_chat('Red team wins!')
+                self.ctfscript.loot_manager.give_loot(self.__red)
+            elif pb: # Blue wins
+                se.send_chat('Blue team wins!')
+                self.ctfscript.loot_manager.give_loot(self.__blue)
+            else: # Draw
+                se.send_chat('The game ended in a draw!')
             self.__play_sound(SOUND_MISSION_COMPLETE)
             s.game_state = PreGameState(se, s)
-        elif pb: # Blue wins
-            se.send_chat('Blue team wins!')
-            s.game_state = PreGameState(se, s)
-            self.__play_sound(SOUND_MISSION_COMPLETE)
-            self.ctfscript.loot_manager.give_loot(self.__blue)
-        elif pr: # Red wins
-            se.send_chat('Red team wins!')
-            s.game_state = PreGameState(se, s)
-            self.__play_sound(SOUND_MISSION_COMPLETE)
-            self.ctfscript.loot_manager.give_loot(self.__red)
         
     def __handle_team(self, team, enemy_team, own_flag,
         own_pole, enemy_pole):
@@ -234,6 +261,7 @@ class GameRunningState(GameState):
                             s = self.server
                             s.send_chat(('The %s flag has been ' +
                                 'resetted!') % fn)
+                            self.__play_sound(SOUND_GATE)
                             break
             for p in enemy_team:
                 if p.entity_data.hp > 0:
@@ -244,6 +272,7 @@ class GameRunningState(GameState):
                         n = p.entity_data.name
                         s = self.server
                         s.send_chat('%s picked up the %s flag!' % (n, fn))
+                        self.__play_sound(SOUND_LICH_SCREAM)
                         break
         if own_flag.carrier is not None:
             if own_flag.carrier.entity_data.hp <= 0:

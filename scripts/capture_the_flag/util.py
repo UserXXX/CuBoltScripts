@@ -78,11 +78,9 @@ class Flagpole(object):
     def dispose(self):
         for effect in self.__particles:
             self.server.particle_effects.remove(effect)
-        #self.__particles = []
+        self.__particles = []
     
     def __update_pos(self):
-        #self.dispose()
-        #self.__create_particles()
         for i in range(8):
             p = self.__particles[i]
             p.data.pos = self.__calc_pos(self.__pos, i)
