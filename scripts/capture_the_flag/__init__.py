@@ -59,6 +59,7 @@ KEY_FLAG_POLE_RED_Y = 'flag_pole_red_y'
 KEY_FLAG_POLE_BLUE_Z = 'flag_pole_blue_z'
 KEY_FLAG_POLE_RED_Z = 'flag_pole_red_z'
 KEY_LOOTING_ENABLED = 'looting_enabled'
+KEY_XP_ON_KILL = 'xp_on_kill'
 
 
 XP_ON_SAME_LEVEL = 25.0
@@ -73,15 +74,16 @@ class CaptureTheFlagConnectionScript(ConnectionScript):
         del self.parent.entity_id_mapping[self.connection.entity_data]
         
     def on_kill(self, event):
-        entity_id = self.connection.entity_id
-        kill_action = KillAction()
-        kill_action.entity_id = entity_id
-        target_id = self.parent.entity_id_mapping[event.target]
-        kill_action.target_id = target_id
-        lvl = self.server.entities[entity_id].level
-        xp = self.__calculate_xp(lvl, event.target.level)
-        kill_action.xp_gained = xp
-        self.server.update_packet.kill_actions.append(kill_action)
+        if parent.xp_on_kill:
+            entity_id = self.connection.entity_id
+            kill_action = KillAction()
+            kill_action.entity_id = entity_id
+            target_id = self.parent.entity_id_mapping[event.target]
+            kill_action.target_id = target_id
+            lvl = self.server.entities[entity_id].level
+            xp = self.__calculate_xp(lvl, event.target.level)
+            kill_action.xp_gained = xp
+            self.server.update_packet.kill_actions.append(kill_action)
         
     def __calculate_xp(self, killer_level, killed_level):
         tmp = float(killed_level) / float(killer_level)
@@ -119,6 +121,8 @@ class CaptureTheFlagScript(ServerScript):
             self.__settings[KEY_FLAG_POLE_BLUE_Z] = 0.0
         if KEY_LOOTING_ENABLED not in self.__settings:
             self.__settings[KEY_LOOTING_ENABLED] = True
+        if KEY_XP_ON_KILL not in self.__settings:
+            self.__settings[KEY_XP_ON_KILL] = True
             
     def __save_settings(self):
         self.server.save_data(SAVE_FILE, self.__settings)
@@ -176,6 +180,15 @@ class CaptureTheFlagScript(ServerScript):
     def loot_enabled(self, value):
         self.loot_manager.loot_enabled = value
         self.__settings[KEY_LOOTING_ENABLED] = value
+        self.__save_settings()
+        
+    @property
+    def xp_on_kill(self):
+        return self.__settings[KEY_XP_ON_KILL]
+        
+    @xp_on_kill.setter
+    def xp_on_kill(self, value):
+        self.__settings[KEY_XP_ON_KILL] = value
         self.__save_settings()
         
         
@@ -250,6 +263,36 @@ def loot(script, state=None):
                 return 'Unknown prameter: %s' % state
         else:
             return 'Looting can only be changed if no game is running.'
+            
+
+@command
+@admin
+def xponkill(script, state=None):
+    ctfscript = script.server.scripts.capture_the_flag
+    if state is None:
+        if ctfscript.xp_on_kill:
+            return 'XP on kill is enabled.'
+        else:
+            return 'XP on kill is disabled.'
+    else:
+        if ctfscript is PreGameState:
+            if state == 'on':
+                if ctfscript.xp_on_kill:
+                    return 'XP on kill is already enabled.'
+                else:
+                    ctfscript.xp_on_kill = True
+                    return 'XP on kill has been enabled.'
+            elif state == 'off':
+                if ctfscript.xp_on_kill:
+                    ctfscript.xp_on_kill = False
+                    return 'XP on kill has been disabled.'
+                else:
+                    return 'XP on kill is already disabled.'
+            else:
+                return 'Unknown prameter: %s' % state
+        else:
+            return ('XP on kill can only be changed if no' +
+                ' game is running.')
             
         
 @command
