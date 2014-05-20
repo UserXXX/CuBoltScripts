@@ -264,12 +264,20 @@ def abortgame(script):
 @command            
 def startgame(script, match_mode='autobalance', point_count='1'):
     ctfscript = script.server.scripts.capture_the_flag
-    p = None
-    try:
-        p = int(point_count)
-    except ValueError:
-        p = None
-    if p is None:
-        return 'Could not parse %s.' % point_count
+    match_mode = match_mode.lower()
+    if match_mode != 'autobalance':
+        return "There is no matchmaking mode named '%s'." % \
+            match_mode
     else:
-        return ctfscript.game_state.startgame(match_mode, p)
+        p = None
+        try:
+            p = int(point_count)
+        except ValueError:
+            p = None
+        if p is None:
+            return 'Could not parse %s.' % point_count
+        else:
+            if p <= 0:
+                return 'You need at least on epoint to win.'
+            else:
+                return ctfscript.game_state.startgame(match_mode, p)

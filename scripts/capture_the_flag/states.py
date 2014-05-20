@@ -102,6 +102,11 @@ class PreGameState(GameState):
             server = self.server
             if lm.loot_enabled:
                 self.server.send_chat(lm.pre_game_message)
+            if point_count > 1:
+                server.send_chat(('You need %i points to win the' + 
+                    ' match!') % point_count)
+            else:
+                server.send_chat('First flag stolen wins!')
             self.__send_chat('Please go to the red base.', red)
             self.__send_chat('Please go to the blue base.', blue)
             server.send_chat('The game is about to begin!')
