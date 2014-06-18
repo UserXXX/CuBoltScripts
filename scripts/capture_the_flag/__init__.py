@@ -308,7 +308,7 @@ def abortgame(script):
 def startgame(script, match_mode='autobalance', point_count='1'):
     ctfscript = script.server.scripts.capture_the_flag
     match_mode = match_mode.lower()
-    if match_mode != 'autobalance':
+    if match_mode != 'autobalance' and match_mode != 'choose':
         return "There is no matchmaking mode named '%s'." % \
             match_mode
     else:

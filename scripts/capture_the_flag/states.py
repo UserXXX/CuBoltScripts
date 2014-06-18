@@ -71,6 +71,10 @@ class GameState(object):
         y = v1.y - v2.y
         z = v1.z - v2.z
         return math.sqrt(x*x + y*y + z*z)
+                    
+    def _send_chat(self, msg, players):
+        for p in players:
+            p.send_chat(msg)
 
         
 class PreGameState(GameState):
@@ -87,35 +91,39 @@ class PreGameState(GameState):
     def startgame(self, match_mode, point_count, use_last=False):
         if len(self.server.entity_list) > 1:
             if not use_last:
-                if match_mode is None or match_mode == '':
-                    match_mode = 'autobalance'
-            
                 self.__match_mode = match_mode
             
-            red = []
-            blue = []
-            self.__autobalance(red, blue)
-            
-            lm = self.ctfscript.loot_manager
-            lm.new_match()
-
-            server = self.server
-            if lm.loot_enabled:
-                self.server.send_chat(lm.pre_game_message)
-            if point_count > 1:
-                server.send_chat(('You need %i points to win the' + 
-                    ' match!') % point_count)
+            if self.__match_mode == 'choose':
+                self.ctfscript.game_state = GameChooseState(
+                    self, self.server, self.ctfscript, self,
+                    point_count)
             else:
-                server.send_chat('First flag stolen wins!')
-            self.__send_chat('Please go to the red base.', red)
-            self.__send_chat('Please go to the blue base.', blue)
-            server.send_chat('The game is about to begin!')
-            ctf = self.ctfscript
-            ctf.game_state = GameInitialisingState(server,
-                self.ctfscript, self, red, blue, point_count)
+                self.ctfscript.game_state = GameAutobalancingState(
+                    self.server, self.ctfscript, self, point_count)
+                
             return 'Game starting...'
         else:
             return 'Not enough players to start a match!'
+               
+               
+class GameAutobalancingState(GameState):
+    def __init__(self, server, ctfscript, pre_game_state, point_count):
+        GameState.__init__(self, server, ctfscript)
+        self.__pre_game_state = pre_game_state
+        self.__point_count = point_count
+        
+    def update(self):
+        red = []
+        blue = []
+        point_count = self.__point_count
+        
+        self.__autobalance(red, blue)
+
+        server = self.server
+        ctf = self.ctfscript
+        ctf.game_state = GameInitialisingState(server,
+            self.ctfscript, self.__pre_game_state, red, blue,
+            point_count)
             
     def __autobalance(self, red, blue):
         players = self.server.players.values()
@@ -133,11 +141,31 @@ class PreGameState(GameState):
         
     def player_compare(self, p1, p2):
         return int(p2.entity_data.level - p1.entity_data.level)
-                    
-    def __send_chat(self, msg, players):
-        for p in players:
-            p.send_chat(msg)
-               
+                
+                
+class GameChooseState(GameState):
+    def __init__(self, server, ctfscript, pre_game_state, point_count):
+        GameState.__init__(self, server, ctfscript)
+        self.__pre_game_state = pre_game_state
+        self.__point_count = point_count
+        self.__to_choose = []
+        self.__red = []
+        self.__blue = []
+        for player in server.players.values():
+            self.__to_choose.append(player)
+            
+    def update(self):
+        if len(self.__to_choose) == 0:
+            if self.__check_teams():
+                server = self.server
+                ctf = self.ctfscript
+                ctf.game_state = GameInitialisingState(server,
+                    self.ctfscript, self.__pre_game_state, red, blue,
+                    point_count)
+                
+    def __check_teams(self):
+        return len(self.__red) > 0 and len(self.__blue) > 0
+        
                
 class GameInitialisingState(GameState):
     def __init__(self, server, ctfscript, pre_game_state, red, blue,
@@ -147,6 +175,19 @@ class GameInitialisingState(GameState):
         self.__blue = blue
         self.__pre_game_state = pre_game_state
         self.__points = points
+        
+        lm = self.ctfscript.loot_manager
+        lm.new_match()
+        if lm.loot_enabled:
+            self.server.send_chat(lm.pre_game_message)
+        if points > 1:
+            server.send_chat(('You need %i points to win the' + 
+                ' match!') % point_count)
+        else:
+            server.send_chat('First flag stolen wins!')
+        self._send_chat('Please go to the red base.', red)
+        self._send_chat('Please go to the blue base.', blue)
+        server.send_chat('The game is about to begin!')
         
     def update(self):
         rfpos = self.ctfscript.flag_pole_red.pos
