@@ -39,14 +39,14 @@ from cuwo.script import ServerScript
 from cuwo.vector import Vector3
 
 
-from states import PreGameState
+from .states import PreGameState
 
 
-from loot import LootManager
+from .loot import LootManager
 
 
-from util import Flag
-from util import Flagpole
+from .util import Flag
+from .util import Flagpole
 
 
 SAVE_FILE = os.path.join('config', 'capture_the_flag')
@@ -74,7 +74,7 @@ class CaptureTheFlagConnectionScript(ConnectionScript):
         del self.parent.entity_id_mapping[self.connection.entity_data]
         
     def on_kill(self, event):
-        if parent.xp_on_kill:
+        if self.parent.xp_on_kill:
             entity_id = self.connection.entity_id
             kill_action = KillAction()
             kill_action.entity_id = entity_id
@@ -202,7 +202,7 @@ def setflagpoler(script):
     player = script.get_player(None)
     if player is not None:
         ctfscript = script.server.scripts.capture_the_flag
-        if ctfscript.game_state is PreGameState:
+        if isinstance(ctfscript.game_state, PreGameState):
             p = player.position
             pos = Vector3(p.x, p.y, p.z - 50000)
             ctfscript.flag_pole_pos_red = pos
@@ -221,7 +221,8 @@ def setflagpoler(script):
 def setflagpoleb(script):
     player = script.get_player(None)
     if player is not None:
-        if ctfscript.game_state is PreGameState:
+        ctfscript = script.server.scripts.capture_the_flag
+        if isinstance(ctfscript.game_state, PreGameState):
             ctfscript = script.server.scripts.capture_the_flag
             p = player.position
             pos = Vector3(p.x, p.y, p.z - 50000)
@@ -246,7 +247,7 @@ def loot(script, state=None):
         else:
             return 'Loot is disabled.'
     else:
-        if ctfscript is PreGameState:
+        if isinstance(ctfscript.game_state, PreGameState):
             if state == 'on':
                 if ctfscript.loot_enabled:
                     return 'Looting is already enabled.'
@@ -275,7 +276,7 @@ def xponkill(script, state=None):
         else:
             return 'XP on kill is disabled.'
     else:
-        if ctfscript is PreGameState:
+        if isinstance(ctfscript.game_state, PreGameState):
             if state == 'on':
                 if ctfscript.xp_on_kill:
                     return 'XP on kill is already enabled.'
@@ -321,6 +322,6 @@ def startgame(script, match_mode='autobalance', point_count='1'):
             return 'Could not parse %s.' % point_count
         else:
             if p <= 0:
-                return 'You need at least on epoint to win.'
+                return 'You need at least on point to win.'
             else:
                 return ctfscript.game_state.startgame(match_mode, p)

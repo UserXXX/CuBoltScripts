@@ -127,7 +127,8 @@ class GameAutobalancingState(GameState):
             
     def __autobalance(self, red, blue):
         players = self.server.players.values()
-        players = sorted(players, cmp=self.player_compare)
+        players = sorted(players, key=lambda player: \
+            player.entity_data.level)
         r = 0
         b = 0
         for i in range(len(players)):
@@ -182,7 +183,7 @@ class GameInitialisingState(GameState):
             self.server.send_chat(lm.pre_game_message)
         if points > 1:
             server.send_chat(('You need %i points to win the' + 
-                ' match!') % point_count)
+                ' match!') % points)
         else:
             server.send_chat('First flag stolen wins!')
         self._send_chat('Please go to the red base.', red)
@@ -225,7 +226,7 @@ class GameRunningState(GameState):
         em.set_hostility_all(True, ENTITY_HOSTILITY_HOSTILE)
         self.__make_friendly(self.__red)
         self.__make_friendly(self.__blue)
-        for e in self.server.entity_list.itervalues():
+        for e in self.server.entity_list.values():
             e.heal(HEAL_AMOUNT)
         self.server.send_chat('Go!')
         self.__play_sound(SOUND_EXPLOSION)
