@@ -65,6 +65,15 @@ class GameState(object):
         
     def startgame(self, param1):
         return DEFAULT_REPLY
+        
+    def join(self, player, team):
+        return DEFAULT_REPLY
+        
+    def player_leave(self, player):
+        pass
+        
+    def player_join(self, player):
+        pass
             
     def _distance(self, v1, v2):
         x = v1.x - v2.x
@@ -95,7 +104,7 @@ class PreGameState(GameState):
             
             if self.__match_mode == 'choose':
                 self.ctfscript.game_state = GameChooseState(
-                    self, self.server, self.ctfscript, self,
+                    self.server, self.ctfscript, self,
                     point_count)
             else:
                 self.ctfscript.game_state = GameAutobalancingState(
@@ -128,7 +137,7 @@ class GameAutobalancingState(GameState):
     def __autobalance(self, red, blue):
         players = self.server.players.values()
         players = sorted(players, key=lambda player: \
-            player.entity_data.level)
+            -1*player.entity_data.level)
         r = 0
         b = 0
         for i in range(len(players)):
@@ -139,9 +148,6 @@ class GameAutobalancingState(GameState):
             else:
                 b += p.entity_data.level
                 blue.append(p)
-        
-    def player_compare(self, p1, p2):
-        return int(p2.entity_data.level - p1.entity_data.level)
                 
                 
 class GameChooseState(GameState):
@@ -154,6 +160,7 @@ class GameChooseState(GameState):
         self.__blue = []
         for player in server.players.values():
             self.__to_choose.append(player)
+        self.server.send_chat("Choose your team using '/join <team>'")
             
     def update(self):
         if len(self.__to_choose) == 0:
@@ -161,8 +168,37 @@ class GameChooseState(GameState):
                 server = self.server
                 ctf = self.ctfscript
                 ctf.game_state = GameInitialisingState(server,
-                    self.ctfscript, self.__pre_game_state, red, blue,
-                    point_count)
+                    self.ctfscript, self.__pre_game_state, self.__red,
+                    self.__blue, self.__point_count)
+                
+    def join(self, player, team):
+        if team != 'red' and team != 'blue':
+            return 'Please choose a valid team.'
+        else:
+            self.__remove_player(player)
+            
+            if team == 'red':
+                self.__red.append(player)
+                self.server.send_chat(('%s joined the red ' +
+                    'team.') % player.name)
+            else:
+                self.__blue.append(player)
+                self.server.send_chat(('%s joined the blue ' +
+                    'team.') % player.name)
+                
+    def player_join(self, player):
+        self.__to_choose.append(player)
+        
+    def player_leave(self, player):
+        self.__remove_player(player)
+            
+    def __remove_player(self, player):
+        if player in self.__to_choose:
+            self.__to_choose.remove(player)
+        elif player in self.__red:
+            self.__red.remove(player)
+        else:
+            self.__blue.remove(player)
                 
     def __check_teams(self):
         return len(self.__red) > 0 and len(self.__blue) > 0

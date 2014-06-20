@@ -68,10 +68,12 @@ XP_ON_SAME_LEVEL = 25.0
 class CaptureTheFlagConnectionScript(ConnectionScript):
     def on_join(self, event):
         self.parent.entity_id_mapping[self.connection.entity_data] = self.connection.entity_id
+        self.parent.game_state.player_join(self)
     
     def on_unload(self):
         self.parent.game_state.on_leave()
         del self.parent.entity_id_mapping[self.connection.entity_data]
+        self.parent.game_state.player_leave(self)
         
     def on_kill(self, event):
         if self.parent.xp_on_kill:
@@ -325,3 +327,16 @@ def startgame(script, match_mode='autobalance', point_count='1'):
                 return 'You need at least on point to win.'
             else:
                 return ctfscript.game_state.startgame(match_mode, p)
+                
+@command
+def join(script, team=None):
+    player = script.get_player(None)
+    if player is None:
+        return ("This command can't be issued from " +
+            "server command line.")
+    else:
+        if team is None:
+            return 'Please choose a team: blue or red'
+        else:
+            ctfscript = script.server.scripts.capture_the_flag
+            return ctfscript.game_state.join(player, team)
