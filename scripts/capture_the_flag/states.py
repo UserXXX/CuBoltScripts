@@ -339,6 +339,12 @@ class GameRunningState(GameState):
                 self.server.send_chat('The red flag got dropped!')
         elif player in self.__spectators:
             self.__spectators.remove(player)
+        
+        if not self.__red and not self.__blue:
+            ctfscript = self.ctfscript
+            server = self.server
+            ctfscript.game_state = PreGameState(server, ctfscript)
+            server.send_chat('Game aborted because all players left.')
     
     def on_hit(self, attacker, target_entity):
         return attacker not in self.__spectators

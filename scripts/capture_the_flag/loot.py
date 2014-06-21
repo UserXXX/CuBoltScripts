@@ -122,15 +122,15 @@ class LootManager(object):
         self.__create_item_types()
         self.__create_material_data()
         self.__loots = {
-            LOOT_COMMON : 'an common item', 
+            LOOT_COMMON : 'a common item', 
             LOOT_UNCOMMON : 'an uncommon item', 
-            LOOT_RARE : 'an rare item', 
+            LOOT_RARE : 'a rare item', 
             LOOT_SPIRIT_FIRE : 'a fire spirit',
             LOOT_SPIRIT_WIND : 'a wind spirit',
-            LOOT_SPIRIT_ICE : 'a ice spirit',
-            LOOT_SPIRIT_UNHOLY : 'a unholy spirit',
+            LOOT_SPIRIT_ICE : 'an ice spirit',
+            LOOT_SPIRIT_UNHOLY : 'an unholy spirit',
             LOOT_EPIC : 'an epic item',
-            LOOT_LEGENDARY : 'an legendary item',
+            LOOT_LEGENDARY : 'a legendary item',
             LOOT_MANA_CUBE : 'a mana cube'
         }
     
