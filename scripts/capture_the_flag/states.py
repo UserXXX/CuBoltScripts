@@ -33,9 +33,12 @@ import math
 
 from cuwo.packet import SoundAction
 
+from cuwo.vector import Vector3
+
 
 ENTITY_HOSTILITY_FRIENDLY_PLAYER = 0
 ENTITY_HOSTILITY_HOSTILE = 1
+ENTITY_HOSTILITY_FRIENDLY = 2
 
 
 SOUND_LEVEL_UP = 29
@@ -52,6 +55,9 @@ FLAG_CAPTURE_DISTANCE = 150000
 HEAL_AMOUNT = 50000
 
 
+MASK_POSITION = 0
+
+
 class GameState(object):
     def __init__(self, server, ctfscript):
         self.server = server
@@ -62,6 +68,9 @@ class GameState(object):
         
     def on_leave(self):
         pass
+        
+    def on_hit(self, attacker, target_entity):
+        return True
         
     def startgame(self, param1):
         return DEFAULT_REPLY
@@ -132,7 +141,7 @@ class GameAutobalancingState(GameState):
         ctf = self.ctfscript
         ctf.game_state = GameInitialisingState(server,
             self.ctfscript, self.__pre_game_state, red, blue,
-            point_count)
+            [], point_count)
             
     def __autobalance(self, red, blue):
         players = self.server.players.values()
@@ -158,6 +167,7 @@ class GameChooseState(GameState):
         self.__to_choose = []
         self.__red = []
         self.__blue = []
+        self.__spectators = []
         for player in server.players.values():
             self.__to_choose.append(player)
         self.server.send_chat("Choose your team using '/join <team>'")
@@ -169,10 +179,11 @@ class GameChooseState(GameState):
                 ctf = self.ctfscript
                 ctf.game_state = GameInitialisingState(server,
                     self.ctfscript, self.__pre_game_state, self.__red,
-                    self.__blue, self.__point_count)
+                    self.__blue, self.__spectators,
+                    self.__point_count)
                 
     def join(self, player, team):
-        if team != 'red' and team != 'blue':
+        if team != 'red' and team != 'blue' and team != 'spectators':
             return 'Please choose a valid team.'
         else:
             self.__remove_player(player)
@@ -181,10 +192,14 @@ class GameChooseState(GameState):
                 self.__red.append(player)
                 self.server.send_chat(('%s joined the red ' +
                     'team.') % player.name)
-            else:
+            elif team == 'blue':
                 self.__blue.append(player)
                 self.server.send_chat(('%s joined the blue ' +
                     'team.') % player.name)
+            else:
+                self.__spectators.append(player)
+                self.server.send_chat('%s joined the spectators.' %
+                    player.name)
                 
     def player_join(self, player):
         self.__to_choose.append(player)
@@ -197,8 +212,10 @@ class GameChooseState(GameState):
             self.__to_choose.remove(player)
         elif player in self.__red:
             self.__red.remove(player)
-        else:
+        elif player in self.__blue:
             self.__blue.remove(player)
+        elif player in self.__spectators:
+            self.__spectators.remove(player)
                 
     def __check_teams(self):
         return len(self.__red) > 0 and len(self.__blue) > 0
@@ -206,11 +223,12 @@ class GameChooseState(GameState):
                
 class GameInitialisingState(GameState):
     def __init__(self, server, ctfscript, pre_game_state, red, blue,
-        points):
+        spectators, points):
         GameState.__init__(self, server, ctfscript)
         self.__red = red
         self.__blue = blue
         self.__pre_game_state = pre_game_state
+        self.__spectators = spectators;
         self.__points = points
         
         lm = self.ctfscript.loot_manager
@@ -229,6 +247,9 @@ class GameInitialisingState(GameState):
     def update(self):
         rfpos = self.ctfscript.flag_pole_red.pos
         s = self.ctfscript
+        for p in self.__spectators:
+            p.entity_data.pos = Vector3(0, 0, 0)
+            p.entity_data.mask |= MASK_POSITION
         for p in self.__red:
             pos = p.position
             if self._distance(pos, rfpos) > FLAG_POLE_DISTANCE:
@@ -239,7 +260,10 @@ class GameInitialisingState(GameState):
             if self._distance(pos, bfpos) > FLAG_POLE_DISTANCE:
                 return None
         s.game_state = GameRunningState(self.server, s, self.__red,
-            self.__blue, self.__points)
+            self.__blue, self.__spectators, self.__points)
+    
+    def player_join(self, player):
+        self.__spectators.append(player)
             
     def on_leave(self):
         s = self.server
@@ -251,17 +275,20 @@ class GameInitialisingState(GameState):
         
        
 class GameRunningState(GameState):
-    def __init__(self, server, ctfscript, red, blue, points):
+    def __init__(self, server, ctfscript, red, blue, spectators,
+        points):
         GameState.__init__(self, server, ctfscript)
         self.__red = red
         self.__blue = blue
+        self.__spectators = spectators
         self.__points_needed = points
         self.__points_blue = 0
         self.__points_red = 0
         em = self.server.entity_manager
-        em.set_hostility_all(True, ENTITY_HOSTILITY_HOSTILE)
+        em.set_hostility_all(False, ENTITY_HOSTILITY_FRIENDLY)
         self.__make_friendly(self.__red)
         self.__make_friendly(self.__blue)
+        self.__make_hostile(self.__red, self.__blue)
         for e in self.server.entity_list.values():
             e.heal(HEAL_AMOUNT)
         self.server.send_chat('Go!')
@@ -274,6 +301,13 @@ class GameRunningState(GameState):
                 em.set_hostility_id(p1.entity_id, p2.entity_id,
                     False, ENTITY_HOSTILITY_FRIENDLY_PLAYER)
                     
+    def __make_hostile(self, players1, players2):
+        em = self.server.entity_manager
+        for p1 in players1:
+            for p2 in players2:
+                em.set_hostility_id(p1.entity_id, p2.entity_id,
+                    True, ENTITY_HOSTILITY_HOSTILE)
+                    
     def __play_sound(self, index):
         for p in self.server.players.values():
             sound = SoundAction()
@@ -282,6 +316,32 @@ class GameRunningState(GameState):
             sound.volume = 1.0
             sound.pos = p.position
             self.server.update_packet.sound_actions.append(sound)
+        
+    def player_join(self, player):
+        self.__spectators.append(player)
+        em = self.server.entity_manager
+        for p in self.server.players:
+            em.set_hostility_id(player.entity_id, p.entity_id,
+                False, ENTITY_HOSTILITY_FRIENDLY)
+        
+    def player_leave(self, player):
+        if player in self.__red:
+            self.__red.remove(player)
+            fb = self.ctfscript.flag_blue
+            if fb.carrier == player:
+                fb.carrier = None
+                self.server.send_chat('The blue flag got dropped!')
+        elif player in self.__blue:
+            self.__blue.remove(player)
+            fr = self.ctfscript.flag_red
+            if fr.carrier == player:
+                fr.carrier = None
+                self.server.send_chat('The red flag got dropped!')
+        elif player in self.__spectators:
+            self.__spectators.remove(player)
+    
+    def on_hit(self, attacker, target_entity):
+        return attacker not in self.__spectators
         
     def update(self):
         s = self.ctfscript
@@ -293,6 +353,10 @@ class GameRunningState(GameState):
         fpb = s.flag_pole_blue
         
         se = self.server
+        
+        for p in self.__spectators:
+            p.entity_data.pos = Vector3(0, 0, 0)
+            p.entity_data.mask |= MASK_POSITION
         
         if self.__handle_team(r, b, fr, fpr, fpb):
             self.__points_blue = self.__points_blue + 1

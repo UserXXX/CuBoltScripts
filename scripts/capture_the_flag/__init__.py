@@ -67,13 +67,17 @@ XP_ON_SAME_LEVEL = 25.0
 
 class CaptureTheFlagConnectionScript(ConnectionScript):
     def on_join(self, event):
-        self.parent.entity_id_mapping[self.connection.entity_data] = self.connection.entity_id
-        self.parent.game_state.player_join(self)
+        self.parent.entity_id_mapping[self.connection.entity_data] = \
+            self.connection.entity_id
+        self.parent.game_state.player_join(self.connection)
     
     def on_unload(self):
         self.parent.game_state.on_leave()
         del self.parent.entity_id_mapping[self.connection.entity_data]
-        self.parent.game_state.player_leave(self)
+        self.parent.game_state.player_leave(self.connection)
+        
+    def on_hit(self, event):
+        self.parent.game_state.on_hit(self.connection, event.target)
         
     def on_kill(self, event):
         if self.parent.xp_on_kill:
