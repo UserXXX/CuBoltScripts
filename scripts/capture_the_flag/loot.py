@@ -144,6 +144,8 @@ class LootManager(object):
         return ('The winners will receive %s each!') % l
         
     def give_loot(self, team):
+        if self.__loot is None:
+            self.__loot = self.__calc_loot()
         if self.loot_enabled:
             for player in team:
                 player.give_item(self.__get_loot_item(player))

@@ -60,6 +60,7 @@ KEY_FLAG_POLE_BLUE_Z = 'flag_pole_blue_z'
 KEY_FLAG_POLE_RED_Z = 'flag_pole_red_z'
 KEY_LOOTING_ENABLED = 'looting_enabled'
 KEY_XP_ON_KILL = 'xp_on_kill'
+KEY_XP_ON_WIN = 'xp_on_win'
 
 
 XP_ON_SAME_LEVEL = 25.0
@@ -129,6 +130,8 @@ class CaptureTheFlagScript(ServerScript):
             self.__settings[KEY_LOOTING_ENABLED] = True
         if KEY_XP_ON_KILL not in self.__settings:
             self.__settings[KEY_XP_ON_KILL] = True
+        if KEY_XP_ON_WIN not in self.__settings:
+            self.__settings[KEY_XP_ON_WIN] = False
             
     def __save_settings(self):
         self.server.save_data(SAVE_FILE, self.__settings)
@@ -197,6 +200,15 @@ class CaptureTheFlagScript(ServerScript):
         self.__settings[KEY_XP_ON_KILL] = value
         self.__save_settings()
         
+    @property
+    def xp_on_win(self):
+        return self.__settings[KEY_XP_ON_WIN]
+    
+    @xp_on_win.setter
+    def xp_on_win(self, value):
+        self.__settings[KEY_XP_ON_WIN] = value
+        self.__save_settings()
+    
         
 def get_class():
     return CaptureTheFlagScript
@@ -299,6 +311,36 @@ def xponkill(script, state=None):
                 return 'Unknown prameter: %s' % state
         else:
             return ('XP on kill can only be changed if no' +
+                ' game is running.')
+            
+
+@command
+@admin
+def xponwin(script, state=None):
+    ctfscript = script.server.scripts.capture_the_flag
+    if state is None:
+        if ctfscript.xp_on_win:
+            return 'XP on win is enabled.'
+        else:
+            return 'XP on win is disabled.'
+    else:
+        if isinstance(ctfscript.game_state, PreGameState):
+            if state == 'on':
+                if ctfscript.xp_on_win:
+                    return 'XP on win is already enabled.'
+                else:
+                    ctfscript.xp_on_win = True
+                    return 'XP on win has been enabled.'
+            elif state == 'off':
+                if ctfscript.xp_on_win:
+                    ctfscript.xp_on_win = False
+                    return 'XP on win has been disabled.'
+                else:
+                    return 'XP on win is already disabled.'
+            else:
+                return 'Unknown prameter: %s' % state
+        else:
+            return ('XP on win can only be changed if no' +
                 ' game is running.')
             
         

@@ -30,7 +30,10 @@ Game states.
 
 import math
 
+from cuwo.entity import ItemData
+from cuwo.entity import ItemUpgrade
 
+from cuwo.packet import KillAction
 from cuwo.packet import SoundAction
 
 from cuwo.vector import Vector3
@@ -391,9 +394,11 @@ class GameRunningState(GameState):
             if pr: # Red wins
                 se.send_chat('Red team wins!')
                 self.ctfscript.loot_manager.give_loot(self.__red)
+                self.__give_xp(self.__red)
             elif pb: # Blue wins
                 se.send_chat('Blue team wins!')
                 self.ctfscript.loot_manager.give_loot(self.__blue)
+                self.__give_xp(self.__blue)
             else: # Draw
                 se.send_chat('The game ended in a draw!')
             self.__play_sound(SOUND_MISSION_COMPLETE)
@@ -445,6 +450,25 @@ class GameRunningState(GameState):
                     return False
         else:
             return False
+            
+    def __give_xp(self, players):
+        xp = (len(self.__red) + len(self.__blue)) * \
+            self.__points_needed
+        item = ItemData()
+        item.minus_modifier = 0
+        item.flags = 0
+        item.items = []
+        for _ in range(32):
+            item.items.append(ItemUpgrade())
+        item.type = 13
+        item.sub_type = 0
+        item.modifier = 1
+        item.rarity = 2
+        item.material = 3
+        item.level = xp
+        
+        for p in players:
+            p.give_item(item)
             
     def _equals(self, v1, v2):
         return v1.x == v2.x and v1.y == v2.y and v1.z == v2.z       
