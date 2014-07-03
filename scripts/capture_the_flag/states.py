@@ -86,6 +86,9 @@ class GameState(object):
         
     def player_join(self, player):
         pass
+        
+    def too_fast(self, connection):
+        pass
             
     def _distance(self, v1, v2):
         x = v1.x - v2.x
@@ -294,6 +297,8 @@ class GameRunningState(GameState):
         self.__make_hostile(self.__red, self.__blue)
         for e in self.server.entity_list.values():
             e.heal(HEAL_AMOUNT)
+        for child in ctfscript.children:
+            child.init_game()
         self.server.send_chat('Go!')
         self.__play_sound(SOUND_EXPLOSION)
         
@@ -351,6 +356,16 @@ class GameRunningState(GameState):
     
     def on_hit(self, attacker, target_entity):
         return attacker not in self.__spectators
+        
+    def too_fast(self, player):
+        s = self.ctfscript
+        print('too_fast')
+        if s.flag_red.carrier == player:
+            s.flag_red.carrier = None
+            self.server.send_chat('The red flag got dropped!')
+        elif s.flag_blue.carrier == player:
+            s.flag_blue.carrier = None
+            self.server.send_chat('The blue flag got dropped!')
         
     def update(self):
         s = self.ctfscript

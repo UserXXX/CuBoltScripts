@@ -28,7 +28,9 @@ Capture the flag script for cuwo.
 """
 
 
+import math
 import os.path
+from datetime import datetime
 
 
 from cuwo.packet import KillAction
@@ -40,6 +42,7 @@ from cuwo.vector import Vector3
 
 
 from .states import PreGameState
+from .states import GameRunningState
 
 
 from .loot import LootManager
@@ -61,9 +64,13 @@ KEY_FLAG_POLE_RED_Z = 'flag_pole_red_z'
 KEY_LOOTING_ENABLED = 'looting_enabled'
 KEY_XP_ON_KILL = 'xp_on_kill'
 KEY_XP_ON_WIN = 'xp_on_win'
+KEY_SPEED_CAP = 'speed_cap'
 
 
 XP_ON_SAME_LEVEL = 25.0
+
+
+MOVEMENT_SPEED_CAP = 7500000
 
 
 class CaptureTheFlagConnectionScript(ConnectionScript):
@@ -91,6 +98,27 @@ class CaptureTheFlagConnectionScript(ConnectionScript):
             xp = self.__calculate_xp(lvl, event.target.level)
             kill_action.xp_gained = xp
             self.server.update_packet.kill_actions.append(kill_action)
+            
+    def on_pos_update(self, event):
+        if self.parent.speed_cap:
+            if isinstance(self.parent.game_state, GameRunningState):
+                t = datetime.now()
+                pos = self.connection.entity_data.pos
+                x = self.old_pos.x - pos.x
+                y = self.old_pos.y - pos.y
+                z = self.old_pos.z - pos.z
+                dif = math.sqrt(x*x + y*y + z*z)
+                elapsed = (t - self.old_time).total_seconds()
+                if elapsed > 0:
+                    average_speed = dif / elapsed
+                    if average_speed > MOVEMENT_SPEED_CAP:
+                        self.parent.game_state.too_fast(self.connection)
+                    self.old_pos = pos
+                    self.old_time = t
+            
+    def init_game(self):
+        self.old_time = datetime.now()
+        self.old_pos = self.connection.entity_data.pos
         
     def __calculate_xp(self, killer_level, killed_level):
         tmp = float(killed_level) / float(killer_level)
@@ -132,6 +160,8 @@ class CaptureTheFlagScript(ServerScript):
             self.__settings[KEY_XP_ON_KILL] = True
         if KEY_XP_ON_WIN not in self.__settings:
             self.__settings[KEY_XP_ON_WIN] = False
+        if KEY_SPEED_CAP not in self.__settings:
+            self.__settings[KEY_SPEED_CAP] = True
             
     def __save_settings(self):
         self.server.save_data(SAVE_FILE, self.__settings)
@@ -207,6 +237,15 @@ class CaptureTheFlagScript(ServerScript):
     @xp_on_win.setter
     def xp_on_win(self, value):
         self.__settings[KEY_XP_ON_WIN] = value
+        self.__save_settings()
+        
+    @property
+    def speed_cap(self):
+        return self.__settings[KEY_SPEED_CAP]
+        
+    @speed_cap.setter
+    def speed_cap(self, value):
+        self.__settings[KEY_SPEED_CAP] = value
         self.__save_settings()
     
         
@@ -341,6 +380,36 @@ def xponwin(script, state=None):
                 return 'Unknown prameter: %s' % state
         else:
             return ('XP on win can only be changed if no' +
+                ' game is running.')
+            
+
+@command
+@admin
+def speedcap(script, state=None):
+    ctfscript = script.server.scripts.capture_the_flag
+    if state is None:
+        if ctfscript.speed_cap:
+            return 'Speed cap is enabled.'
+        else:
+            return 'Speed cap is disabled.'
+    else:
+        if isinstance(ctfscript.game_state, PreGameState):
+            if state == 'on':
+                if ctfscript.speed_cap:
+                    return 'Speed cap is already enabled.'
+                else:
+                    ctfscript.speed_cap = True
+                    return 'Speed cap has been enabled.'
+            elif state == 'off':
+                if ctfscript.speed_cap:
+                    ctfscript.speed_cap = False
+                    return 'Speed cap has been disabled.'
+                else:
+                    return 'Speed cap is already disabled.'
+            else:
+                return 'Unknown prameter: %s' % state
+        else:
+            return ('Speed cap can only be changed if no' +
                 ' game is running.')
             
         
