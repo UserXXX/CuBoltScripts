@@ -23,9 +23,7 @@
 # SOFTWARE.
 
 
-"""
-Loot management.
-"""
+"""Loot management."""
 
 
 import random
@@ -35,6 +33,7 @@ from cuwo.entity import ItemData
 from cuwo.entity import ItemUpgrade
 
 
+# Loot types
 LOOT_COMMON = 0
 LOOT_UNCOMMON = 1
 LOOT_RARE = 2
@@ -47,12 +46,14 @@ LOOT_SPIRIT_WIND = 8
 LOOT_MANA_CUBE = 9
 
 
+# Character classes
 CLASS_WARRIOR = 1
 CLASS_RANGER = 2
 CLASS_MAGE = 3
 CLASS_ROGUE = 4
 
 
+# Item types
 ITEM_TYPE_WEAPON = 3
 ITEM_TYPE_ARMOR = 4
 ITEM_TYPE_GLOVES = 5
@@ -63,6 +64,7 @@ ITEM_TYPE_RING = 9
 ITEM_TYPE_SPIRIT = 11
 
 
+# Item subtypes
 ITEM_SUB_TYPE_WEAPON_SWORD = 0
 ITEM_SUB_TYPE_WEAPON_AXE = 1
 ITEM_SUB_TYPE_WEAPON_MACE = 2
@@ -102,6 +104,7 @@ ITEM_SUB_TYPE_RING = 0
 ITEM_SUB_TYPE_SPIRIT = 14
 
 
+# Materials
 MATERIAL_NONE = 0
 MATERIAL_IRON = 1
 MATERIAL_WOOD = 2
@@ -111,12 +114,14 @@ MATERIAL_SILK = 25
 MATERIAL_LINEN = 26
 MATERIAL_COTTON = 27
 
-
+# Item rarities
 ITEM_RARITY_RARE = 2
 
 
 class LootManager(object):
+    """Manager for loot."""
     def __init__(self):
+        """Creates a new LootManager."""
         self.__loot = None
         self.loot_enabled = True
         self.__create_item_types()
@@ -135,15 +140,28 @@ class LootManager(object):
         }
     
     def new_match(self):
+        """Initializes the manager for a new match."""
         if self.__loot is None:
             self.__loot = self.__calc_loot()
             
     @property
     def pre_game_message(self):
+        """Gets the pre game message displayed to all clients.
+        
+        Return value:
+        The message
+        
+        """
         l = self.__loots[self.__loot]
         return ('The winners will receive %s each!') % l
         
     def give_loot(self, team):
+        """Gives loot to all players in a given list.
+        
+        Keyword arguments:
+        team -- The team which receives the loot
+        
+        """
         if self.__loot is None:
             self.__loot = self.__calc_loot()
         if self.loot_enabled:
@@ -152,6 +170,15 @@ class LootManager(object):
         self.__loot = None
     
     def __get_loot_item(self, player):
+        """Gets a loot item for a specified player.
+        
+        Keyword arguments:
+        player -- The player to get a loot item for.
+        
+        Return value:
+        An ItemData instance describing the item.
+        
+        """
         l = self.__loot
         item = ItemData()
         item.minus_modifier = 0
@@ -187,17 +214,46 @@ class LootManager(object):
         return item
             
     def __get_sub_type(self, type, player):
+        """Gets a valid sub type for an item for a specified player
+        and main type.
+        
+        Keyword arguments:
+        type -- Main item type
+        player -- Player to get an item subtype for
+        
+        Return value:
+        The generated sub type (as an integer)
+        
+        """
         item_type = self.__item_types[type]
         item_player = item_type[player.entity_data.class_type]
         return item_player[random.randint(0, len(item_player) - 1)]
     
     def __get_material(self, type, sub_type, player):
+        """Gets the material for a given item based on type and sub
+        type for a specified player.
+        
+        Keyword arguments:
+        type -- Main item type
+        sub_type -- Item sub type
+        player -- Player to get a material for
+        
+        Return value:
+        Material for the specified arguments (as an integer)
+        
+        """
         item_type = self.__item_materials[type]
         class_type = item_type[player.entity_data.class_type]
         sub_type = class_type[sub_type]
         return sub_type[random.randint(0, len(sub_type) - 1)]
     
     def __calc_loot(self):
+        """Determines which type of loot will be given to the winners.
+        
+        Return value:
+        One of the LOOT_ constants
+        
+        """
         l = random.randint(0, 200)
         if l < 100:
             return LOOT_COMMON
@@ -223,6 +279,7 @@ class LootManager(object):
                 return LOOT_SPIRIT_UNHOLY
                 
     def __create_item_types(self):
+        """Initializes the item types."""
         warrior_weapons = [
             ITEM_SUB_TYPE_WEAPON_SWORD,
             ITEM_SUB_TYPE_WEAPON_AXE,
@@ -407,6 +464,7 @@ class LootManager(object):
         }
         
     def __create_material_data(self):
+        """Initializes material data."""
         materials_sword = [
             MATERIAL_IRON
         ]

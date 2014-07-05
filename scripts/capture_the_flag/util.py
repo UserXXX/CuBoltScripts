@@ -23,9 +23,7 @@
 # SOFTWARE.
 
 
-"""
-Utility classes for the "Capture the flag" script.
-"""
+"""Utility classes for the "Capture the flag" script."""
 
 
 import math
@@ -34,15 +32,26 @@ import math
 from cuwo.vector import Vector3
 
 
+# Particle types
 PARTICLES_NO_ACCELLERATION = 3
 PARTICLES_NO_GRAVITY = 4
 
 
+# Radius of flag poles
 RADIUS = 100000
 
 
-class Flagpole(object):
+class Flagpole:
+    """Flagpole."""
     def __init__(self, server, pos, color):
+        """Creates a new Flagpole.
+        
+        Keyword arguments:
+        server -- Server instance
+        pos -- Position of this flag pole
+        color -- Color of the flag pole
+        
+        """
         self.server = server
         self.__pos = pos
         self.__color = color
@@ -51,6 +60,7 @@ class Flagpole(object):
         self.__create_particles()
         
     def __create_particles(self):
+        """Creates a particle effect."""
         for i in range(8):
             p = self.server.create_particle_effect()
             p.data.pos = self.__calc_pos(self.__pos, i)
@@ -70,17 +80,25 @@ class Flagpole(object):
             p.fire()
     
     def __calc_pos(self, pos, index):
+        """Calculates the position of a flag pole part.
+        
+        Keyword arguments:
+        pos -- Position of the flag pole
+        index -- Index of the position to calculate
+        """
         rotation = float(index) / 8.0 * math.pi * 2
         x = math.sin(rotation) * RADIUS + pos.x
         y = math.cos(rotation) * RADIUS + pos.y
         return Vector3(x, y, pos.z)
         
     def dispose(self):
+        """Disposes the flag pole."""
         for effect in self.__particles:
             self.server.particle_effects.remove(effect)
         self.__particles = []
     
     def __update_pos(self):
+        """Updates the position of the flagpole."""
         for i in range(8):
             p = self.__particles[i]
             p.data.pos = self.__calc_pos(self.__pos, i)
@@ -88,16 +106,36 @@ class Flagpole(object):
     
     @property
     def pos(self):
+        """Gets the position of the flagpole.
+        
+        Return value:
+        The position of the flagpole
+        """
         return self.__pos
         
     @pos.setter
     def pos(self, value):
+        """Sets the position of the flagpole.
+        
+        Keyword arguments:
+        value -- Value to set the position to
+        """
         self.__pos = value
         self.__update_pos()
 
         
-class Flag(object):
+class Flag:
+    """Flag."""
     def __init__(self, server, pos, color, name):
+        """Creates a new flag.
+        
+        Keyword arguments:
+        server -- Server instance
+        pos -- Position of the flag
+        color -- Color of the flag
+        name -- Name of the flag
+        
+        """
         self.server = server
         self.__particle = server.create_particle_effect()
         self.carrier = None
@@ -120,8 +158,18 @@ class Flag(object):
         
     @property
     def pos(self):
+        """Gets the position of the flag.
+        
+        Return value:
+        The position of the flag
+        """
         return self.__particle.data.pos
         
     @pos.setter
     def pos(self, value):
+        """Sets the position of the flag.
+        
+        Keyword arguments:
+        value -- Value to set the position to
+        """
         self.__particle.data.pos = value

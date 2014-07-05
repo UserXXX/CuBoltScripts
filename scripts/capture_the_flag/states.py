@@ -23,8 +23,7 @@
 # SOFTWARE.
 
 
-"""
-Game states.
+"""Game states and main game logic.
 """
 
 
@@ -39,11 +38,13 @@ from cuwo.packet import SoundAction
 from cuwo.vector import Vector3
 
 
+# Hostility constants
 ENTITY_HOSTILITY_FRIENDLY_PLAYER = 0
 ENTITY_HOSTILITY_HOSTILE = 1
 ENTITY_HOSTILITY_FRIENDLY = 2
 
 
+# Sounds
 SOUND_LEVEL_UP = 29
 SOUND_MISSION_COMPLETE = 30
 SOUND_LICH_SCREAM = 43
@@ -51,6 +52,7 @@ SOUND_GATE = 51
 SOUND_EXPLOSION = 81
 
 
+# Some other constants
 DEFAULT_REPLY = ('This command cannot be issued in the current state ' +
     'of the game.')
 FLAG_POLE_DISTANCE = 500000
@@ -58,51 +60,132 @@ FLAG_CAPTURE_DISTANCE = 150000
 HEAL_AMOUNT = 50000
 
 
+# EntityUpdatePacket mask for transfer of the position
 MASK_POSITION = 0
 
 
-class GameState(object):
+class GameState:
+    """Parent class of all GameStates."""
     def __init__(self, server, ctfscript):
+        """Initializes the GameState.
+        
+        Keyword arguments:
+        server -- Current server instance
+        ctfscript -- CaptureTheFlagServerScript instance
+        
+        """
         self.server = server
         self.ctfscript = ctfscript
     
     def update(self):
+        """Method for handling update logic."""
         pass
         
     def on_leave(self):
+        """Mehtod for handling (any) players leave."""
         pass
         
     def on_hit(self, attacker, target_entity):
+        """Method for handling an on_hit event.
+        
+        Keyword arguments:
+        attacker -- Attacking entity
+        target_entity -- Attacked entity
+        
+        """
         return True
         
-    def startgame(self, param1):
+    def startgame(self, param1=None, param2=None, param3=None):
+        """Method for handling a /startgame command.
+        
+        Keyword arguments:
+        param1 -- Parameter given by the user
+        param2 -- Parameter given by the user
+        param3 -- Parameter given by the user
+        
+        Return value:
+        Message to send the command executor
+        
+        """
         return DEFAULT_REPLY
         
     def join(self, player, team):
+        """Method for handling a /join command.
+        
+        Keyword arguments:
+        player -- The player who executed the command
+        team -- The team he wants to join
+        
+        Return value:
+        Message to send the command executor
+        
+        """
         return DEFAULT_REPLY
         
     def player_leave(self, player):
+        """Method for handling a player leave event.
+        
+        Keyword arguments:
+        player -- The player who left
+        
+        """
         pass
         
     def player_join(self, player):
+        """Method for handling a player join event.
+        
+        Keyword arguments:
+        player -- The player who left
+        
+        """
         pass
         
-    def too_fast(self, connection):
+    def too_fast(self, player):
+        """Method for handling a player moving too fast.
+        
+        Keyword arguments:
+        player -- The player who joined
+        
+        """
         pass
             
     def _distance(self, v1, v2):
+        """Calculates the distance between two vectors.
+        
+        Keyword arguments:
+        v1 -- The first vector
+        v2 -- The second vector
+        
+        Return value:
+        The distance as a float
+        
+        """
         x = v1.x - v2.x
         y = v1.y - v2.y
         z = v1.z - v2.z
         return math.sqrt(x*x + y*y + z*z)
                     
     def _send_chat(self, msg, players):
+        """Send a chat message to the given players.
+        
+        Keyword arguments:
+        msg -- The message to send
+        players -- The players to send the message to
+        
+        """
         for p in players:
             p.send_chat(msg)
 
         
 class PreGameState(GameState):
+    """State before the game starts (lobby)."""
     def __init__(self, server, ctfscript):
+        """Creates a new PreGameState.
+        
+        server -- Current server instance
+        ctfscript -- CaptureTheFlagServerScript instance
+        
+        """
         GameState.__init__(self, server, ctfscript)
         self.__match_mode = 'autobalance'
         ctfscript.flag_red.pos = ctfscript.flag_pole_pos_red
@@ -112,7 +195,18 @@ class PreGameState(GameState):
         server.entity_manager.set_hostility_all(False,
             ENTITY_HOSTILITY_FRIENDLY_PLAYER)
         
-    def startgame(self, match_mode, point_count, use_last=False):
+    def startgame(self, match_mode='autobalance', point_count=1, use_last=False):
+        """Method for handling a /startgame command.
+        
+        Keyword arguments:
+        match_mode -- Chosen match mode
+        point_count -- Number of flags needed to win
+        use_last -- True, to use last games settings, otherwise False
+        
+        Return value:
+        Message to send the command executor
+        
+        """
         if len(self.server.entity_list) > 1:
             if not use_last:
                 self.__match_mode = match_mode
@@ -131,12 +225,23 @@ class PreGameState(GameState):
                
                
 class GameAutobalancingState(GameState):
+    """State for autobalancing the teams."""
     def __init__(self, server, ctfscript, pre_game_state, point_count):
+        """Creates a new GameAutobalancingState
+        
+        Keyword arguments:
+        server -- Current server instance
+        ctfscript -- CaptureTheFlagServerScript instance
+        pre_game_state -- Last active game state
+        point_count -- Number of flags needed to win
+        
+        """
         GameState.__init__(self, server, ctfscript)
         self.__pre_game_state = pre_game_state
         self.__point_count = point_count
         
     def update(self):
+        """Method for handling update logic."""
         red = []
         blue = []
         point_count = self.__point_count
@@ -150,6 +255,13 @@ class GameAutobalancingState(GameState):
             [], point_count)
             
     def __autobalance(self, red, blue):
+        """Autobalances the teams.
+        
+        Keyword arguments:
+        red -- List for the red players
+        blue -- List for the blue players
+        
+        """
         players = self.server.players.values()
         players = sorted(players, key=lambda player: \
             -1*player.entity_data.level)
@@ -166,7 +278,17 @@ class GameAutobalancingState(GameState):
                 
                 
 class GameChooseState(GameState):
+    """State for choosing teams."""
     def __init__(self, server, ctfscript, pre_game_state, point_count):
+        """Creates a new GameAutobalancingState
+        
+        Keyword arguments:
+        server -- Current server instance
+        ctfscript -- CaptureTheFlagServerScript instance
+        pre_game_state -- Last active game state
+        point_count -- Number of flags needed to win
+        
+        """
         GameState.__init__(self, server, ctfscript)
         self.__pre_game_state = pre_game_state
         self.__point_count = point_count
@@ -179,6 +301,7 @@ class GameChooseState(GameState):
         self.server.send_chat("Choose your team using '/join <team>'")
             
     def update(self):
+        """Method for handling update logic."""
         if len(self.__to_choose) == 0:
             if self.__check_teams():
                 server = self.server
@@ -189,6 +312,16 @@ class GameChooseState(GameState):
                     self.__point_count)
                 
     def join(self, player, team):
+        """Method for handling a /join command.
+        
+        Keyword arguments:
+        player -- The player who executed the command
+        team -- The team he wants to join
+        
+        Return value:
+        Message to send the command executor
+        
+        """
         if team != 'red' and team != 'blue' and team != 'spectators':
             return 'Please choose a valid team.'
         else:
@@ -208,12 +341,30 @@ class GameChooseState(GameState):
                     player.name)
                 
     def player_join(self, player):
+        """Method for handling a player join event.
+        
+        Keyword arguments:
+        player -- The player who left
+        
+        """
         self.__to_choose.append(player)
         
     def player_leave(self, player):
+        """Method for handling a player leave event.
+        
+        Keyword arguments:
+        player -- The player who left
+        
+        """
         self.__remove_player(player)
             
     def __remove_player(self, player):
+        """Removes player from the choosing players.
+        
+        Keyword arguments:
+        player -- Player to remove
+        
+        """
         if player in self.__to_choose:
             self.__to_choose.remove(player)
         elif player in self.__red:
@@ -224,10 +375,17 @@ class GameChooseState(GameState):
             self.__spectators.remove(player)
                 
     def __check_teams(self):
+        """Checks whether the teams are valid.
+        
+        Return value:
+        True, if the teams are valid, otherwise False.
+        
+        """
         return len(self.__red) > 0 and len(self.__blue) > 0
         
                
 class GameInitialisingState(GameState):
+    """State just before the game starts, time to got to your flag!"""
     def __init__(self, server, ctfscript, pre_game_state, red, blue,
         spectators, points):
         GameState.__init__(self, server, ctfscript)
@@ -251,6 +409,7 @@ class GameInitialisingState(GameState):
         server.send_chat('The game is about to begin!')
         
     def update(self):
+        """Method for handling update logic."""
         rfpos = self.ctfscript.flag_pole_red.pos
         s = self.ctfscript
         for p in self.__spectators:
@@ -269,9 +428,16 @@ class GameInitialisingState(GameState):
             self.__blue, self.__spectators, self.__points)
     
     def player_join(self, player):
+        """Method for handling a player join event.
+        
+        Keyword arguments:
+        player -- The player who left
+        
+        """
         self.__spectators.append(player)
             
     def on_leave(self):
+        """Mehtod for handling (any) players leave."""
         s = self.server
         self.ctfscript.game_state = self.__pre_game_state
         s.send_chat(self.__pre_game_state.startgame(None,
@@ -281,6 +447,7 @@ class GameInitialisingState(GameState):
         
        
 class GameRunningState(GameState):
+    """State for the running game."""
     def __init__(self, server, ctfscript, red, blue, spectators,
         points):
         GameState.__init__(self, server, ctfscript)
@@ -303,6 +470,12 @@ class GameRunningState(GameState):
         self.__play_sound(SOUND_EXPLOSION)
         
     def __make_friendly(self, players):
+        """Makes the given players friendly to each other.
+        
+        Keyword arguments:
+        players -- Players to make friendly
+        
+        """
         em = self.server.entity_manager
         for p1 in players:
             for p2 in players:
@@ -310,6 +483,13 @@ class GameRunningState(GameState):
                     False, ENTITY_HOSTILITY_FRIENDLY_PLAYER)
                     
     def __make_hostile(self, players1, players2):
+        """Makes the given player groups hostile to each other.
+        
+        Keyword arguments:
+        players1 -- First group of players
+        players2 -- Second group of players
+        
+        """
         em = self.server.entity_manager
         for p1 in players1:
             for p2 in players2:
@@ -317,6 +497,11 @@ class GameRunningState(GameState):
                     True, ENTITY_HOSTILITY_HOSTILE)
                     
     def __play_sound(self, index):
+        """Plays a sound for all clients.
+        
+        Keyword arguments:
+        index -- Index of the sound to play
+        """
         for p in self.server.players.values():
             sound = SoundAction()
             sound.sound_index = index
@@ -326,6 +511,12 @@ class GameRunningState(GameState):
             self.server.update_packet.sound_actions.append(sound)
         
     def player_join(self, player):
+        """Method for handling a player join event.
+        
+        Keyword arguments:
+        player -- The player who left
+        
+        """
         self.__spectators.append(player)
         em = self.server.entity_manager
         for p in self.server.players:
@@ -333,6 +524,12 @@ class GameRunningState(GameState):
                 False, ENTITY_HOSTILITY_FRIENDLY)
         
     def player_leave(self, player):
+        """Method for handling a player leave event.
+        
+        Keyword arguments:
+        player -- The player who left
+        
+        """
         if player in self.__red:
             self.__red.remove(player)
             fb = self.ctfscript.flag_blue
@@ -355,9 +552,22 @@ class GameRunningState(GameState):
             server.send_chat('Game aborted because all players left.')
     
     def on_hit(self, attacker, target_entity):
+        """Method for handling an on_hit event.
+        
+        Keyword arguments:
+        attacker -- Attacking entity
+        target_entity -- Attacked entity
+        
+        """
         return attacker not in self.__spectators
         
     def too_fast(self, player):
+        """Method for handling a player moving too fast.
+        
+        Keyword arguments:
+        player -- The player who joined
+        
+        """
         s = self.ctfscript
         print('too_fast')
         if s.flag_red.carrier == player:
@@ -368,6 +578,7 @@ class GameRunningState(GameState):
             self.server.send_chat('The blue flag got dropped!')
         
     def update(self):
+        """Method for handling update logic."""
         s = self.ctfscript
         r = self.__red
         b = self.__blue
@@ -421,6 +632,16 @@ class GameRunningState(GameState):
         
     def __handle_team(self, team, enemy_team, own_flag,
         own_pole, enemy_pole):
+        """Handles the update logic for one team.
+        
+        Keyword arguments:
+        team -- Team to handle
+        enemy_team -- Other team
+        own_flag -- Flag of the handled team
+        own_pole -- Flag pole of the handled team
+        enemy_pole -- Flag pole of the other team
+        
+        """
         if own_flag.carrier is None:
             ofp = own_flag.pos
             if not self._equals(ofp, own_pole.pos):
@@ -467,6 +688,12 @@ class GameRunningState(GameState):
             return False
             
     def __give_xp(self, players):
+        """Gives XP to the given players.
+        
+        Keyword arguments:
+        players -- Players who will gain the XP
+        
+        """
         xp = (len(self.__red) + len(self.__blue)) * \
             self.__points_needed
         item = ItemData()
@@ -486,4 +713,11 @@ class GameRunningState(GameState):
             p.give_item(item)
             
     def _equals(self, v1, v2):
+        """Checks if two vectors are equal.
+        
+        Keyword argument:
+        v1 -- First vector
+        v2 -- Second vector
+        
+        """
         return v1.x == v2.x and v1.y == v2.y and v1.z == v2.z       

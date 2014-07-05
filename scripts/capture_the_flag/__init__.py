@@ -23,9 +23,7 @@
 # SOFTWARE.
 
 
-"""
-Capture the flag script for cuwo.
-"""
+"""Capture the flag script for cuwo."""
 
 
 import math
@@ -52,9 +50,11 @@ from .util import Flag
 from .util import Flagpole
 
 
+# Path to save file
 SAVE_FILE = os.path.join('config', 'capture_the_flag')
 
 
+# Keys used in settings dict
 KEY_FLAG_POLE_BLUE_X = 'flag_pole_blue_x'
 KEY_FLAG_POLE_RED_X = 'flag_pole_red_x'
 KEY_FLAG_POLE_BLUE_Y = 'flag_pole_blue_y'
@@ -67,27 +67,51 @@ KEY_XP_ON_WIN = 'xp_on_win'
 KEY_SPEED_CAP = 'speed_cap'
 
 
+# Amount of XP a player receives if he kills another player with the
+# same level
 XP_ON_SAME_LEVEL = 25.0
 
 
+# Movement speed cap and min update time
 MOVEMENT_SPEED_CAP = 7500000
+MOVEMENT_SPEED_FPS = 1 / 60
 
 
 class CaptureTheFlagConnectionScript(ConnectionScript):
+    """ConnectionScript handling a single players connection."""
     def on_join(self, event):
+        """Handles cuwo's on_join event.
+        
+        Keyword arguments:
+        event -- Further information about what happened
+        
+        """
         self.parent.entity_id_mapping[self.connection.entity_data] = \
             self.connection.entity_id
         self.parent.game_state.player_join(self.connection)
     
     def on_unload(self):
+        """Handles cuwo's on_unload event."""
         self.parent.game_state.on_leave()
         del self.parent.entity_id_mapping[self.connection.entity_data]
         self.parent.game_state.player_leave(self.connection)
         
     def on_hit(self, event):
+        """Handles cuwo's on_hit event.
+        
+        Keyword arguments:
+        event -- Further information about what happened
+        
+        """
         self.parent.game_state.on_hit(self.connection, event.target)
         
     def on_kill(self, event):
+        """Handles cuwo's on_kill event.
+        
+        Keyword arguments:
+        event -- Further information about what happened
+        
+        """
         if self.parent.xp_on_kill:
             entity_id = self.connection.entity_id
             kill_action = KillAction()
@@ -100,6 +124,12 @@ class CaptureTheFlagConnectionScript(ConnectionScript):
             self.server.update_packet.kill_actions.append(kill_action)
             
     def on_pos_update(self, event):
+        """Handles a position update of this player.
+        
+        Keyword arguments:
+        event -- Further information about what happened
+        
+        """
         if self.parent.speed_cap:
             if isinstance(self.parent.game_state, GameRunningState):
                 t = datetime.now()
@@ -109,7 +139,7 @@ class CaptureTheFlagConnectionScript(ConnectionScript):
                 z = self.old_pos.z - pos.z
                 dif = math.sqrt(x*x + y*y + z*z)
                 elapsed = (t - self.old_time).total_seconds()
-                if elapsed > 0:
+                if elapsed > MOVEMENT_SPEED_FPS:
                     average_speed = dif / elapsed
                     if average_speed > MOVEMENT_SPEED_CAP:
                         self.parent.game_state.too_fast(self.connection)
@@ -117,18 +147,31 @@ class CaptureTheFlagConnectionScript(ConnectionScript):
                     self.old_time = t
             
     def init_game(self):
+        """Initializes this player for a new game."""
         self.old_time = datetime.now()
         self.old_pos = self.connection.entity_data.pos
         
     def __calculate_xp(self, killer_level, killed_level):
+        """Calculates the amount of XP a player gains for a kill.
+        
+        Keyword arguments:
+        killer_level -- Level of the killing entity
+        killed_level -- Level of the killed entity
+        
+        Return value:
+        The amount of XP the killer gains
+        
+        """
         tmp = float(killed_level) / float(killer_level)
         return max(1, int(XP_ON_SAME_LEVEL * tmp))
 
 
 class CaptureTheFlagScript(ServerScript):
+    """ServerScript managing CTF."""
     connection_class = CaptureTheFlagConnectionScript
 
     def on_load(self):
+        """Handles the loading of this script."""
         self.entity_id_mapping = {}
         self.__load_settings()
         self.__create_flag_poles()
@@ -137,10 +180,15 @@ class CaptureTheFlagScript(ServerScript):
         self.game_state = PreGameState(self.server, self)
         
     def on_unload(self):
+        """Handles the unloading of this script."""
         self.flag_pole_red.dispose()
         self.flag_pole_blue.dispose()
         
     def __load_settings(self):
+        """Loads the settings from disk and sets default values if
+        not contained.
+        
+        """
         self.__settings = self.server.load_data(SAVE_FILE, {})
         if KEY_FLAG_POLE_RED_X not in self.__settings:
             self.__settings[KEY_FLAG_POLE_RED_X] = 0.0
@@ -164,9 +212,11 @@ class CaptureTheFlagScript(ServerScript):
             self.__settings[KEY_SPEED_CAP] = True
             
     def __save_settings(self):
+        """Saves the settings to disk."""
         self.server.save_data(SAVE_FILE, self.__settings)
         
     def __create_flag_poles(self):
+        """Initializes the flag poles."""
         s = self.server
         c = s.create_color(1.0, 0.0, 0.0, 1.0)
         self.flag_red = Flag(s, self.flag_pole_pos_red, c, 'red')
@@ -176,13 +226,26 @@ class CaptureTheFlagScript(ServerScript):
         self.flag_pole_blue = Flagpole(s, self.flag_pole_pos_blue, c)
     
     def update(self, event):
+        """Updates the script."""
         self.game_state.update()
         
     def get_mode(self, event):
+        """Returns the mode the server is running in.
+        
+        Keyword arguments:
+        event -- Further information about what happened
+        
+        """
         return 'CTF'
     
     @property
     def flag_pole_pos_red(self):
+        """Returns the red flag poles position.
+        
+        Return value:
+        The position of the red flag pole as a Vector3
+        
+        """
         x = self.__settings[KEY_FLAG_POLE_RED_X]
         y = self.__settings[KEY_FLAG_POLE_RED_Y]
         z = self.__settings[KEY_FLAG_POLE_RED_Z]
@@ -190,6 +253,12 @@ class CaptureTheFlagScript(ServerScript):
     
     @flag_pole_pos_red.setter
     def flag_pole_pos_red(self, value):
+        """Sets the position of the red flag pole.
+        
+        Keyword arguments:
+        value -- Value to set the position to
+        
+        """
         self.__settings[KEY_FLAG_POLE_RED_X] = value.x
         self.__settings[KEY_FLAG_POLE_RED_Y] = value.y
         self.__settings[KEY_FLAG_POLE_RED_Z] = value.z
@@ -198,6 +267,12 @@ class CaptureTheFlagScript(ServerScript):
         
     @property
     def flag_pole_pos_blue(self):
+        """Returns the blue flag poles position.
+        
+        Return value:
+        The position of the blue flag pole as a Vector3
+        
+        """
         x = self.__settings[KEY_FLAG_POLE_BLUE_X]
         y = self.__settings[KEY_FLAG_POLE_BLUE_Y]
         z = self.__settings[KEY_FLAG_POLE_BLUE_Z]
@@ -205,6 +280,12 @@ class CaptureTheFlagScript(ServerScript):
     
     @flag_pole_pos_blue.setter
     def flag_pole_pos_blue(self, value):
+        """Sets the position of the blue flag pole.
+        
+        Keyword arguments:
+        value -- Value to set the position to
+        
+        """
         self.__settings[KEY_FLAG_POLE_BLUE_X] = value.x
         self.__settings[KEY_FLAG_POLE_BLUE_Y] = value.y
         self.__settings[KEY_FLAG_POLE_BLUE_Z] = value.z
@@ -213,49 +294,98 @@ class CaptureTheFlagScript(ServerScript):
         
     @property
     def loot_enabled(self):
+        """Returns whether looting is enabled.
+        
+        Return value:
+        True, if looting is enabled, otherwise False
+        
+        """
         return self.__settings[KEY_LOOTING_ENABLED]
         
     @loot_enabled.setter
     def loot_enabled(self, value):
+        """Sets whether looting is enabled.
+        
+        Keyword arguments:
+        value -- True to enable or False to disable looting
+        """
         self.loot_manager.loot_enabled = value
         self.__settings[KEY_LOOTING_ENABLED] = value
         self.__save_settings()
         
     @property
     def xp_on_kill(self):
+        """Gets whether XP gainin on kill is enabled.
+        
+        Return value:
+        True, if XP gaining is enabled, otherwise False
+        
+        """
         return self.__settings[KEY_XP_ON_KILL]
         
     @xp_on_kill.setter
     def xp_on_kill(self, value):
+        """Sets whether XP gaining on kill is enabled.
+        
+        Keyword arguments:
+        value -- True to enable of False to disable XP gaining
+        
+        """
         self.__settings[KEY_XP_ON_KILL] = value
         self.__save_settings()
         
     @property
     def xp_on_win(self):
+        """Gets whether XP gaining on win is enabled.
+        
+        Return value:
+        True, if XP gaining is enabled, otherwise false
+        
+        """
         return self.__settings[KEY_XP_ON_WIN]
     
     @xp_on_win.setter
     def xp_on_win(self, value):
+        """Sets whether XP gaining on win is enabled.
+        
+        Keyword arguments:
+        value -- True to enable or False to disable XP gaining
+        
+        """
         self.__settings[KEY_XP_ON_WIN] = value
         self.__save_settings()
         
     @property
     def speed_cap(self):
+        """Gets whether the speed cap for flag carriers is active.
+        
+        Return value:
+            True, if the speed cap is active, otherwise False.
+        
+        """
         return self.__settings[KEY_SPEED_CAP]
         
     @speed_cap.setter
     def speed_cap(self, value):
+        """Sets whether the speed cap for flag carriers is active.
+        
+        Keyword arguments:
+        value -- True to enable or False to disable the speed cap
+            
+        """
         self.__settings[KEY_SPEED_CAP] = value
         self.__save_settings()
     
         
 def get_class():
+    """Returns the ServerScript class for use by cuwo."""
     return CaptureTheFlagScript
 
     
 @command
 @admin
 def setflagpoler(script):
+    """Command for setting the flag pole of the red team."""
     player = script.get_player(None)
     if player is not None:
         ctfscript = script.server.scripts.capture_the_flag
@@ -276,6 +406,7 @@ def setflagpoler(script):
 @command
 @admin
 def setflagpoleb(script):
+    """Command for setting the flag pole of the blue team."""
     player = script.get_player(None)
     if player is not None:
         ctfscript = script.server.scripts.capture_the_flag
@@ -297,6 +428,10 @@ def setflagpoleb(script):
 @command
 @admin
 def loot(script, state=None):
+    """Command for enabling, disabling or displaying the state of
+    looting.
+    
+    """
     ctfscript = script.server.scripts.capture_the_flag
     if state is None:
         if ctfscript.loot_enabled:
@@ -326,6 +461,10 @@ def loot(script, state=None):
 @command
 @admin
 def xponkill(script, state=None):
+    """Command for enabling, disabling or displaying the state of
+    XP gaining on kill.
+    
+    """
     ctfscript = script.server.scripts.capture_the_flag
     if state is None:
         if ctfscript.xp_on_kill:
@@ -356,6 +495,10 @@ def xponkill(script, state=None):
 @command
 @admin
 def xponwin(script, state=None):
+    """Command for enabling, disabling or displaying the state of
+    XP gaining on win.
+    
+    """
     ctfscript = script.server.scripts.capture_the_flag
     if state is None:
         if ctfscript.xp_on_win:
@@ -386,6 +529,10 @@ def xponwin(script, state=None):
 @command
 @admin
 def speedcap(script, state=None):
+    """Command for enabling, disabling or displaying the speed cap
+    for flag carriers.
+    
+    """
     ctfscript = script.server.scripts.capture_the_flag
     if state is None:
         if ctfscript.speed_cap:
@@ -416,6 +563,7 @@ def speedcap(script, state=None):
 @command
 @admin
 def abortgame(script):
+    """Command for aborting a running game."""
     ctfscript = script.server.scripts.capture_the_flag
     ctfscript.game_state = PreGameState(script.server, ctfscript)
     script.server.send_chat('Game aborted by administrator.')
@@ -424,6 +572,7 @@ def abortgame(script):
     
 @command            
 def startgame(script, match_mode='autobalance', point_count='1'):
+    """Command for starting a game."""
     ctfscript = script.server.scripts.capture_the_flag
     match_mode = match_mode.lower()
     if match_mode != 'autobalance' and match_mode != 'choose':
@@ -445,6 +594,7 @@ def startgame(script, match_mode='autobalance', point_count='1'):
                 
 @command
 def join(script, team=None):
+    """Command for joining a team."""
     player = script.get_player(None)
     if player is None:
         return ("This command can't be issued from " +
