@@ -62,7 +62,7 @@ class Flagpole:
     def __create_particles(self):
         """Creates a particle effect."""
         for i in range(8):
-            p = self.server.create_particle_effect()
+            p = self.server.cubolt_factory.create_particle_effect()
             p.data.pos = self.__calc_pos(self.__pos, i)
             p.data.accel = Vector3(0.0, 0.0, 0.0)
             p.data.color_red = self.__color.red
@@ -137,7 +137,8 @@ class Flag:
         
         """
         self.server = server
-        self.__particle = server.create_particle_effect()
+        factory = server.cubolt_factory
+        self.__particle = factory.create_particle_effect()
         self.carrier = None
         self.name = name
         p = self.__particle

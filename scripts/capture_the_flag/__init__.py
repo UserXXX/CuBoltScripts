@@ -218,10 +218,10 @@ class CaptureTheFlagScript(ServerScript):
     def __create_flag_poles(self):
         """Initializes the flag poles."""
         s = self.server
-        c = s.create_color(1.0, 0.0, 0.0, 1.0)
+        c = s.cubolt_factory.create_color(1.0, 0.0, 0.0, 1.0)
         self.flag_red = Flag(s, self.flag_pole_pos_red, c, 'red')
         self.flag_pole_red = Flagpole(s, self.flag_pole_pos_red, c)
-        c = s.create_color(0.0, 0.0, 1.0, 1.0)
+        c = s.cubolt_factory.create_color(0.0, 0.0, 1.0, 1.0)
         self.flag_blue = Flag(s, self.flag_pole_pos_blue, c, 'blue')
         self.flag_pole_blue = Flagpole(s, self.flag_pole_pos_blue, c)
     
