@@ -264,16 +264,16 @@ class GameAutobalancingState(GameState):
         """
         players = self.server.players.values()
         players = sorted(players, key=lambda player: \
-            -1*player.entity_data.level)
+            -1*player.entity.level)
         r = 0
         b = 0
         for i in range(len(players)):
             p = players[i]
             if b >= r:
-                r += p.entity_data.level
+                r += p.entity.level
                 red.append(p)
             else:
-                b += p.entity_data.level
+                b += p.entity.level
                 blue.append(p)
                 
                 
@@ -413,8 +413,8 @@ class GameInitialisingState(GameState):
         rfpos = self.ctfscript.flag_pole_red.pos
         s = self.ctfscript
         for p in self.__spectators:
-            p.entity_data.pos = Vector3(0, 0, 0)
-            p.entity_data.mask |= MASK_POSITION
+            p.entity.pos = Vector3(0, 0, 0)
+            p.entity.mask |= MASK_POSITION
         for p in self.__red:
             pos = p.position
             if self._distance(pos, rfpos) > FLAG_POLE_DISTANCE:
@@ -590,8 +590,8 @@ class GameRunningState(GameState):
         se = self.server
         
         for p in self.__spectators:
-            p.entity_data.pos = Vector3(0, 0, 0)
-            p.entity_data.mask |= MASK_POSITION
+            p.entity.pos = Vector3(0, 0, 0)
+            p.entity.mask |= MASK_POSITION
         
         if self.__handle_team(r, b, fr, fpr, fpb):
             self.__points_blue = self.__points_blue + 1
@@ -646,7 +646,7 @@ class GameRunningState(GameState):
             ofp = own_flag.pos
             if not self._equals(ofp, own_pole.pos):
                 for p in team:
-                    if p.entity_data.hp > 0:
+                    if p.entity.hp > 0:
                         pos = p.position
                         if self._distance(pos, ofp) < \
                             FLAG_CAPTURE_DISTANCE:
@@ -658,18 +658,18 @@ class GameRunningState(GameState):
                             self.__play_sound(SOUND_GATE)
                             break
             for p in enemy_team:
-                if p.entity_data.hp > 0:
+                if p.entity.hp > 0:
                     pos = p.position
                     if self._distance(pos, ofp) < FLAG_CAPTURE_DISTANCE:
                         own_flag.carrier = p
                         fn = own_flag.name
-                        n = p.entity_data.name
+                        n = p.entity.name
                         s = self.server
                         s.send_chat('%s picked up the %s flag!' % (n, fn))
                         self.__play_sound(SOUND_LICH_SCREAM)
                         break
         if own_flag.carrier is not None:
-            if own_flag.carrier.entity_data.hp <= 0:
+            if own_flag.carrier.entity.hp <= 0:
                 # Carrier was killed
                 own_flag.carrier = None
                 fn = own_flag.name

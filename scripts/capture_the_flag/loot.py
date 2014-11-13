@@ -195,7 +195,7 @@ class LootManager(object):
             item.rarity = l
             item.material = self.__get_material(item.type,
                 item.sub_type, player)
-            item.level = player.entity_data.level
+            item.level = player.entity.level
         elif l >= LOOT_SPIRIT_FIRE and l <= LOOT_SPIRIT_WIND:
             item.type = ITEM_TYPE_SPIRIT
             item.sub_type = ITEM_SUB_TYPE_SPIRIT
@@ -203,7 +203,7 @@ class LootManager(object):
             item.rarity = ITEM_RARITY_RARE
             # 128: Fire, 129: Unholy, 130: Ice, 131: Wind
             item.material = 123 + l
-            item.level = player.entity_data.level
+            item.level = player.entity.level
         else: # Mana Cube
             item.type = 25
             item.sub_type = 0
@@ -226,7 +226,7 @@ class LootManager(object):
         
         """
         item_type = self.__item_types[type]
-        item_player = item_type[player.entity_data.class_type]
+        item_player = item_type[player.entity.class_type]
         return item_player[random.randint(0, len(item_player) - 1)]
     
     def __get_material(self, type, sub_type, player):
@@ -243,7 +243,7 @@ class LootManager(object):
         
         """
         item_type = self.__item_materials[type]
-        class_type = item_type[player.entity_data.class_type]
+        class_type = item_type[player.entity.class_type]
         sub_type = class_type[sub_type]
         return sub_type[random.randint(0, len(sub_type) - 1)]
     

@@ -51,7 +51,8 @@ from .util import Flagpole
 
 
 # Path to save file
-SAVE_FILE = os.path.join('config', 'capture_the_flag')
+SAVE_FILE = 'capture_the_flag'
+#SAVE_FILE = os.path.join('config', 'capture_the_flag')
 
 
 # Keys used in settings dict
@@ -86,14 +87,14 @@ class CaptureTheFlagConnectionScript(ConnectionScript):
         event -- Further information about what happened
         
         """
-        self.parent.entity_id_mapping[self.connection.entity_data] = \
+        self.parent.entity_id_mapping[self.connection.entity] = \
             self.connection.entity_id
         self.parent.game_state.player_join(self.connection)
     
     def on_unload(self):
         """Handles cuwo's on_unload event."""
         self.parent.game_state.on_leave()
-        del self.parent.entity_id_mapping[self.connection.entity_data]
+        del self.parent.entity_id_mapping[self.connection.entity]
         self.parent.game_state.player_leave(self.connection)
         
     def on_hit(self, event):
@@ -118,7 +119,7 @@ class CaptureTheFlagConnectionScript(ConnectionScript):
             kill_action.entity_id = entity_id
             target_id = self.parent.entity_id_mapping[event.target]
             kill_action.target_id = target_id
-            lvl = self.server.entities[entity_id].level
+            lvl = self.server.players[entity_id].entity.level
             xp = self.__calculate_xp(lvl, event.target.level)
             kill_action.xp_gained = xp
             self.server.update_packet.kill_actions.append(kill_action)
@@ -133,7 +134,7 @@ class CaptureTheFlagConnectionScript(ConnectionScript):
         if self.parent.speed_cap:
             if isinstance(self.parent.game_state, GameRunningState):
                 t = datetime.now()
-                pos = self.connection.entity_data.pos
+                pos = self.connection.entity.pos
                 x = self.old_pos.x - pos.x
                 y = self.old_pos.y - pos.y
                 z = self.old_pos.z - pos.z
@@ -149,7 +150,7 @@ class CaptureTheFlagConnectionScript(ConnectionScript):
     def init_game(self):
         """Initializes this player for a new game."""
         self.old_time = datetime.now()
-        self.old_pos = self.connection.entity_data.pos
+        self.old_pos = self.connection.entity.pos
         
     def __calculate_xp(self, killer_level, killed_level):
         """Calculates the amount of XP a player gains for a kill.
@@ -218,10 +219,10 @@ class CaptureTheFlagScript(ServerScript):
     def __create_flag_poles(self):
         """Initializes the flag poles."""
         s = self.server
-        c = s.cubolt_factory.create_color(1.0, 0.0, 0.0, 1.0)
+        c = (1.0, 0.0, 0.0, 1.0)
         self.flag_red = Flag(s, self.flag_pole_pos_red, c, 'red')
         self.flag_pole_red = Flagpole(s, self.flag_pole_pos_red, c)
-        c = s.cubolt_factory.create_color(0.0, 0.0, 1.0, 1.0)
+        c = (0.0, 0.0, 1.0, 1.0)
         self.flag_blue = Flag(s, self.flag_pole_pos_blue, c, 'blue')
         self.flag_pole_blue = Flagpole(s, self.flag_pole_pos_blue, c)
     

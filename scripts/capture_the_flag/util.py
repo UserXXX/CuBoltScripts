@@ -65,10 +65,7 @@ class Flagpole:
             p = self.server.cubolt_factory.create_particle_effect()
             p.data.pos = self.__calc_pos(self.__pos, i)
             p.data.accel = Vector3(0.0, 0.0, 0.0)
-            p.data.color_red = self.__color.red
-            p.data.color_blue = self.__color.green
-            p.data.color_green = self.__color.blue
-            p.data.color_alpha = self.__color.alpha
+            p.data.color = self.__color
             p.data.scale = 0.5
             p.data.count = 1
             p.data.particle_type = PARTICLES_NO_ACCELLERATION
@@ -144,10 +141,7 @@ class Flag:
         p = self.__particle
         p.data.pos = pos
         p.data.accel = Vector3(0.0, 0.0, 2.0)
-        p.data.color_red = color.red
-        p.data.color_blue = color.green
-        p.data.color_green = color.blue
-        p.data.color_alpha = color.alpha
+        p.data.color = color
         p.data.scale = 0.5
         p.data.count = 1
         p.data.particle_type = PARTICLES_NO_GRAVITY
