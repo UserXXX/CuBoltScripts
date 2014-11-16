@@ -27,13 +27,6 @@
 More advanced PVP script than the cuwo's default one.
 """
 
-
-import os.path
-
-
-from cuwo.entity import FLAGS_1_HOSTILE
-
-
 from cuwo.packet import EntityUpdate
 from cuwo.packet import KillAction
 from cuwo.packet import ServerUpdate
@@ -50,7 +43,7 @@ ENTITY_HOSTILITY_HOSTILE = 1
 ENTITY_HOSTILITY_FRIENDLY = 2
 
 
-SAVE_FILE = os.path.join('config', 'advanced_pvp')
+SAVE_FILE = 'advanced_pvp'
 
 
 KEY_PVP_ENABLED = 'pvp_enabled'
@@ -59,27 +52,17 @@ KEY_GAIN_XP = 'gain_xp'
 KEY_PVP_DISPLAY = 'pvp_display'
 
 
-MASK_HOSTILITY = 1 << 7
-MASK_FLAGS = 1 << 14
-MASK_MULTIPLIERS = 1 << 30
-MASK_TRANSFER = MASK_HOSTILITY | MASK_FLAGS | MASK_MULTIPLIERS
-
-
 class PVPConnectionScript(ConnectionScript):
     def on_join(self, event):
-        self.parent.entity_id_mapping[self.connection.entity_data] = self.connection.entity_id
         self.parent.update_hostilities()
-    
-    def on_unload(self):
-        del self.parent.entity_id_mapping[self.connection.entity_data]
             
     def on_kill(self, event):
         # event is not called if an entity with a friendly display is killed
         if self.parent.gain_xp:
             kill_action = KillAction()
-            kill_action.entity_id = self.connection.entity_id
-            kill_action.target_id = self.parent.entity_id_mapping[event.target]
-            kill_action.xp_gained = self.calculate_xp(self.connection.entity_data.level, event.target.level)
+            kill_action.entity_id = self.connectionplayer.entity.entity_id
+            kill_action.target_id = event.target.entity_id
+            kill_action.xp_gained = self.calculate_xp(self.connection.player.entity.level, event.target.level)
         
             self.server.update_packet.kill_actions.append(kill_action)
         
@@ -92,8 +75,6 @@ class PVPConnectionScript(ConnectionScript):
 
 class PVPScript(ServerScript):
     connection_class = PVPConnectionScript
-    
-    entity_id_mapping = {}
     
     # events
     def on_load(self):
