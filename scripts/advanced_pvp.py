@@ -60,7 +60,7 @@ class PVPConnectionScript(ConnectionScript):
         # event is not called if an entity with a friendly display is killed
         if self.parent.gain_xp:
             kill_action = KillAction()
-            kill_action.entity_id = self.connectionplayer.entity.entity_id
+            kill_action.entity_id = self.connection.player.entity.entity_id
             kill_action.target_id = event.target.entity_id
             kill_action.xp_gained = self.calculate_xp(self.connection.player.entity.level, event.target.level)
         
