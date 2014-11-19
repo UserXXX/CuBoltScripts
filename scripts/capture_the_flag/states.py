@@ -144,7 +144,7 @@ class GameState:
         """Method for handling a player moving too fast.
         
         Keyword arguments:
-        player -- The player who joined
+        player -- The player who was too fast
         
         """
         pass
@@ -207,7 +207,7 @@ class PreGameState(GameState):
         Message to send the command executor
         
         """
-        if len(self.server.entity_list) > 1:
+        if len(self.server.players) > 1:
             if not use_last:
                 self.__match_mode = match_mode
             
@@ -462,8 +462,8 @@ class GameRunningState(GameState):
         self.__make_friendly(self.__red)
         self.__make_friendly(self.__blue)
         self.__make_hostile(self.__red, self.__blue)
-        for e in self.server.entity_list.values():
-            e.heal(HEAL_AMOUNT)
+        for p in self.server.players.values():
+            p.entity.heal(HEAL_AMOUNT)
         for child in ctfscript.children:
             child.init_game()
         self.server.send_chat('Go!')
@@ -565,11 +565,10 @@ class GameRunningState(GameState):
         """Method for handling a player moving too fast.
         
         Keyword arguments:
-        player -- The player who joined
+        player -- The player who was too fast
         
         """
         s = self.ctfscript
-        print('too_fast')
         if s.flag_red.carrier == player:
             s.flag_red.carrier = None
             self.server.send_chat('The red flag got dropped!')

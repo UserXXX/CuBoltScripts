@@ -42,19 +42,17 @@ class RandomEventScript(ServerScript):
             self.do_something()
             
     def do_something(self):
-        entity_count = len(self.server.entity_list)
+        entity_count = len(self.server.world.entities)
         if entity_count > 0:
             index = random.randint(0, entity_count - 1)
         
             i = 0
-            entity_id = -1
-            for id, data in self.server.entities.iteritems():
+            entity = None
+            for id, e in self.server.word.entities.items():
                 if i == index:
-                    entity_id = id
+                    entity = e
                     break
                 i = i + 1
-        
-            entity = self.server.entity_list[entity_id]
         
             action = random.randint(0, 3)
             if action == 0:

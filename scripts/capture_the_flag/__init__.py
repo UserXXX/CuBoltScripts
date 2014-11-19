@@ -87,14 +87,11 @@ class CaptureTheFlagConnectionScript(ConnectionScript):
         event -- Further information about what happened
         
         """
-        self.parent.entity_id_mapping[self.connection.entity] = \
-            self.connection.entity_id
         self.parent.game_state.player_join(self.connection)
     
     def on_unload(self):
         """Handles cuwo's on_unload event."""
         self.parent.game_state.on_leave()
-        del self.parent.entity_id_mapping[self.connection.entity]
         self.parent.game_state.player_leave(self.connection)
         
     def on_hit(self, event):
@@ -113,14 +110,13 @@ class CaptureTheFlagConnectionScript(ConnectionScript):
         event -- Further information about what happened
         
         """
-        if self.parent.xp_on_kill:
+        target_id = event.target.entity_id
+        if self.parent.xp_on_kill and target_id in self.server.players:
             entity_id = self.connection.entity_id
             kill_action = KillAction()
             kill_action.entity_id = entity_id
-            target_id = self.parent.entity_id_mapping[event.target]
             kill_action.target_id = target_id
-            lvl = self.server.players[entity_id].entity.level
-            xp = self.__calculate_xp(lvl, event.target.level)
+            xp = self.__calculate_xp(self.entity.level, event.target.level)
             kill_action.xp_gained = xp
             self.server.update_packet.kill_actions.append(kill_action)
             
@@ -134,7 +130,7 @@ class CaptureTheFlagConnectionScript(ConnectionScript):
         if self.parent.speed_cap:
             if isinstance(self.parent.game_state, GameRunningState):
                 t = datetime.now()
-                pos = self.connection.entity.pos
+                pos = self.entity.pos
                 x = self.old_pos.x - pos.x
                 y = self.old_pos.y - pos.y
                 z = self.old_pos.z - pos.z
@@ -173,7 +169,6 @@ class CaptureTheFlagScript(ServerScript):
 
     def on_load(self):
         """Handles the loading of this script."""
-        self.entity_id_mapping = {}
         self.__load_settings()
         self.__create_flag_poles()
         self.loot_manager = LootManager()
@@ -214,6 +209,9 @@ class CaptureTheFlagScript(ServerScript):
             
     def __save_settings(self):
         """Saves the settings to disk."""
+        # make sure save directory exists
+        if not os.path.exists('./save'):
+            os.makedirs('./save')
         self.server.save_data(SAVE_FILE, self.__settings)
         
     def __create_flag_poles(self):
