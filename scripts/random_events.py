@@ -48,7 +48,7 @@ class RandomEventScript(ServerScript):
         
             i = 0
             entity = None
-            for id, e in self.server.word.entities.items():
+            for id, e in self.server.world.entities.items():
                 if i == index:
                     entity = e
                     break
@@ -57,20 +57,20 @@ class RandomEventScript(ServerScript):
             action = random.randint(0, 3)
             if action == 0:
                 entity.damage(random.randint(500, 1000), random.randint(0, 5000))
-                self.server.send_chat('Damaged %s!' % entity.data.name)
-                print('Damaged %s!' % entity.data.name)
+                self.server.send_chat('Damaged %s!' % entity.name)
+                print('Damaged %s!' % entity.name)
             elif action == 1:
                 entity.heal(random.randint(500, 1000))
-                self.server.send_chat('Healed %s!' % entity.data.name)
-                print('Healed %s!' % entity.data.name)
+                self.server.send_chat('Healed %s!' % entity.name)
+                print('Healed %s!' % entity.name)
             elif action == 2:
                 entity.kill()
-                self.server.send_chat('Killed %s!' % entity.data.name)
-                print('Killed %s!' % entity.data.name)
+                self.server.send_chat('Killed %s!' % entity.name)
+                print('Killed %s!' % entity.name)
             elif action == 3:
                 entity.stun(random.randint(1000, 10000))
-                self.server.send_chat('Stunned %s!' % entity.data.name)
-                print('Stunned %s!' % entity.data.name)
+                self.server.send_chat('Stunned %s!' % entity.name)
+                print('Stunned %s!' % entity.name)
                 
 def get_class():
     return RandomEventScript
