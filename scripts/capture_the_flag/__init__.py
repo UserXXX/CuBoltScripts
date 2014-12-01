@@ -31,6 +31,7 @@ import os.path
 from datetime import datetime
 
 
+from cuwo.constants import FRIENDLY_PLAYER_TYPE
 from cuwo.packet import KillAction
 from cuwo.script import admin
 from cuwo.script import command
@@ -50,9 +51,9 @@ from .util import Flag
 from .util import Flagpole
 
 
-# Path to save file
+# Path to save and config file
 SAVE_FILE = 'capture_the_flag'
-#SAVE_FILE = os.path.join('config', 'capture_the_flag')
+CONFIG_FILE = '../config/capture_the_flag'
 
 
 # Keys used in settings dict
@@ -66,6 +67,10 @@ KEY_LOOTING_ENABLED = 'looting_enabled'
 KEY_XP_ON_KILL = 'xp_on_kill'
 KEY_XP_ON_WIN = 'xp_on_win'
 KEY_SPEED_CAP = 'speed_cap'
+
+# Keys used in config dict
+CKEY_HOSTILE_BETWEEN_MATCHES = 'hostile_between_matches'
+CKEY_HOSTILITY_BETWEEN_MATCHES = 'hostility_between_matches'
 
 
 # Amount of XP a player receives if he kills another player with the
@@ -170,6 +175,7 @@ class CaptureTheFlagScript(ServerScript):
     def on_load(self):
         """Handles the loading of this script."""
         self.__load_settings()
+        self.__load_config()
         self.__create_flag_poles()
         self.loot_manager = LootManager()
         self.loot_manager.loot_enabled = self.loot_enabled
@@ -206,6 +212,15 @@ class CaptureTheFlagScript(ServerScript):
             self.__settings[KEY_XP_ON_WIN] = False
         if KEY_SPEED_CAP not in self.__settings:
             self.__settings[KEY_SPEED_CAP] = True
+                
+    def __load_config(self):
+        self.__config = self.server.load_data(CONFIG_FILE, {})
+        if CKEY_HOSTILE_BETWEEN_MATCHES not in self.__config:
+            self.__config[CKEY_HOSTILE_BETWEEN_MATCHES] = False
+        if CKEY_HOSTILITY_BETWEEN_MATCHES not in self.__config:
+            self.__config[CKEY_HOSTILITY_BETWEEN_MATCHES] = \
+                FRIENDLY_PLAYER_TYPE
+        self.server.save_data(CONFIG_FILE, self.__config)
             
     def __save_settings(self):
         """Saves the settings to disk."""
@@ -374,6 +389,14 @@ class CaptureTheFlagScript(ServerScript):
         """
         self.__settings[KEY_SPEED_CAP] = value
         self.__save_settings()
+        
+    @property
+    def hostile_between_matches(self):
+        return self.__config[CKEY_HOSTILE_BETWEEN_MATCHES]
+        
+    @property
+    def hostility_between_matches(self):
+        return self.__config[CKEY_HOSTILITY_BETWEEN_MATCHES]
     
         
 def get_class():

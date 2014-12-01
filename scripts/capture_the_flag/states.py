@@ -29,19 +29,12 @@
 
 import math
 
+from cuwo.constants import FRIENDLY_PLAYER_TYPE
 from cuwo.entity import ItemData
 from cuwo.entity import ItemUpgrade
-
 from cuwo.packet import KillAction
 from cuwo.packet import SoundAction
-
 from cuwo.vector import Vector3
-
-
-# Hostility constants
-ENTITY_HOSTILITY_FRIENDLY_PLAYER = 0
-ENTITY_HOSTILITY_HOSTILE = 1
-ENTITY_HOSTILITY_FRIENDLY = 2
 
 
 # Sounds
@@ -192,8 +185,12 @@ class PreGameState(GameState):
         ctfscript.flag_red.carrier = None
         ctfscript.flag_blue.pos = ctfscript.flag_pole_pos_blue
         ctfscript.flag_blue.carrier = None
-        server.entity_manager.set_hostility_all(False,
-            ENTITY_HOSTILITY_FRIENDLY_PLAYER)
+        
+        hostile = ctfscript.hostile_between_matches
+        hostility = FRIENDLY_PLAYER_TYPE
+        if hostile:
+            hostility = ctfscript.hostility_between_matches
+        server.entity_manager.set_hostility_all(hostile, hostility)
         
     def startgame(self, match_mode='autobalance', point_count=1, use_last=False):
         """Method for handling a /startgame command.
@@ -219,6 +216,9 @@ class PreGameState(GameState):
                 self.ctfscript.game_state = GameAutobalancingState(
                     self.server, self.ctfscript, self, point_count)
                 
+            em = self.server.entity_manager
+            em.set_hostility_all(False, FRIENDLY_PLAYER_TYPE)
+            
             return 'Game starting...'
         else:
             return 'Not enough players to start a match!'
