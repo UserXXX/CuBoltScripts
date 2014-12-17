@@ -32,6 +32,8 @@ from datetime import datetime
 
 
 from cuwo.constants import FRIENDLY_PLAYER_TYPE
+from cuwo.constants import HOSTILE_TYPE
+from cuwo.constants import FRIENDLY_TYPE
 from cuwo.packet import KillAction
 from cuwo.script import admin
 from cuwo.script import command
@@ -176,16 +178,24 @@ class CaptureTheFlagScript(ServerScript):
     def on_load(self):
         """Handles the loading of this script."""
         self.__load_settings()
-        self.load_config()
-        self.__create_flag_poles()
-        self.loot_manager = LootManager()
-        self.loot_manager.loot_enabled = self.loot_enabled
-        self.game_state = PreGameState(self.server, self)
+        error = self.load_config()
+        if error is not None:
+            print(('[ERROR][capture_the_flag]: %s' % error))
+            print('Disabled capture_the_flag.')
+            self.server.unload_script('capture_the_flag')
+        else:
+            self.__create_flag_poles()
+            self.loot_manager = LootManager()
+            self.loot_manager.loot_enabled = self.loot_enabled
+            self.game_state = PreGameState(self.server, self)
         
     def on_unload(self):
         """Handles the unloading of this script."""
-        self.flag_pole_red.dispose()
-        self.flag_pole_blue.dispose()
+        try:
+            self.flag_pole_red.dispose()
+            self.flag_pole_blue.dispose()
+        except AttributeError:
+            pass
         
     def __load_settings(self):
         """Loads the settings from disk and sets default values if
@@ -211,31 +221,56 @@ class CaptureTheFlagScript(ServerScript):
         not contained.
         
         """
-        self.__config = self.server.load_data(CONFIG_FILE, {})
-        save = False
-        if CKEY_LOOTING_ENABLED not in self.__config:
-            self.__config[CKEY_LOOTING_ENABLED] = True
-            save = True
-        if CKEY_XP_ON_KILL not in self.__config:
-            self.__config[CKEY_XP_ON_KILL] = True
-            save = True
-        if CKEY_XP_ON_WIN not in self.__config:
-            self.__config[CKEY_XP_ON_WIN] = False
-            save = True
-        if CKEY_SPEED_CAP not in self.__config:
-            self.__config[CKEY_SPEED_CAP] = True
-            save = True
-        if CKEY_HOSTILE_BETWEEN_MATCHES not in self.__config:
-            self.__config[CKEY_HOSTILE_BETWEEN_MATCHES] = False
-            save = True
-        if CKEY_HOSTILITY_BETWEEN_MATCHES not in self.__config:
-            self.__config[CKEY_HOSTILITY_BETWEEN_MATCHES] = \
-                FRIENDLY_PLAYER_TYPE
-            save = True
+        try:
+            c = self.server.load_data(CONFIG_FILE, {})
             
-        if save:
-            self.server.save_data(CONFIG_FILE, self.__config)
+            save = False
+            if CKEY_LOOTING_ENABLED not in c:
+                c[CKEY_LOOTING_ENABLED] = True
+                save = True
+            if CKEY_XP_ON_KILL not in c:
+                c[CKEY_XP_ON_KILL] = True
+                save = True
+            if CKEY_XP_ON_WIN not in c:
+                c[CKEY_XP_ON_WIN] = False
+                save = True
+            if CKEY_SPEED_CAP not in c:
+                c[CKEY_SPEED_CAP] = True
+                save = True
+            if CKEY_HOSTILE_BETWEEN_MATCHES not in c:
+                c[CKEY_HOSTILE_BETWEEN_MATCHES] = False
+                save = True
+            if CKEY_HOSTILITY_BETWEEN_MATCHES not in c:
+                c[CKEY_HOSTILITY_BETWEEN_MATCHES] = \
+                    FRIENDLY_PLAYER_TYPE
+                save = True
             
+            # Check types
+            if not isinstance(c[CKEY_LOOTING_ENABLED], bool):
+                return 'Invalid value for %s.' % CKEY_LOOTING_ENABLED
+            if not isinstance(c[CKEY_XP_ON_KILL], bool):
+                return 'Invalid value for %s.' % CKEY_XP_ON_KILL
+            if not isinstance(c[CKEY_XP_ON_WIN], bool):
+                return 'Invalid value for %s.' % CKEY_XP_ON_WIN
+            if not isinstance(c[CKEY_SPEED_CAP], bool):
+                return 'Invalid value for %s.' % CKEY_SPEED_CAP
+            if not isinstance(c[CKEY_HOSTILE_BETWEEN_MATCHES], bool):
+                return ('Invalid value for %s.' % \
+                    CKEY_HOSTILE_BETWEEN_MATCHES)
+            l = [FRIENDLY_PLAYER_TYPE, HOSTILE_TYPE, FRIENDLY_TYPE]
+            if c[CKEY_HOSTILITY_BETWEEN_MATCHES] not in l:
+                s = 'Invalid value for '
+                s = '%s%s.' % (s, CKEY_HOSTILITY_BETWEEN_MATCHES)
+                return '%s Allowed values are %s.' % (s, str(l)[1:-1])
+            
+            self.__config = c
+            
+            if save:
+                self.server.save_data(CONFIG_FILE, self.__config)
+            
+        except NameError as e:
+           return 'Error while parsing config file.'
+           
     def apply_config(self):
         """Applies the current config. Called after reloading
         config.
@@ -450,9 +485,12 @@ def reloadconfig(script):
     """Command for reloading the config file."""
     ctfscript = script.server.scripts.capture_the_flag
     if isinstance(ctfscript.game_state, PreGameState):
-        ctfscript.load_config()
-        ctfscript.apply_config()
-        return 'Config reloaded successful.'
+        error = ctfscript.load_config()
+        if error is None:
+            ctfscript.apply_config()
+            return 'Config reloaded successful.'
+        else:
+            return error
     else:
         return ("This command can only be executed when no" +
             " match is running")
