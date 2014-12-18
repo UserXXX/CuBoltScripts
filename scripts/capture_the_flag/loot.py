@@ -28,6 +28,10 @@
 
 import random
 
+from cuwo.constants import WARRIOR_CLASS
+from cuwo.constants import RANGER_CLASS
+from cuwo.constants import MAGE_CLASS
+from cuwo.constants import ROGUE_CLASS
 
 from cuwo.entity import ItemData
 from cuwo.entity import ItemUpgrade
@@ -44,13 +48,6 @@ LOOT_SPIRIT_UNHOLY = 6
 LOOT_SPIRIT_ICE = 7
 LOOT_SPIRIT_WIND = 8
 LOOT_MANA_CUBE = 9
-
-
-# Character classes
-CLASS_WARRIOR = 1
-CLASS_RANGER = 2
-CLASS_MAGE = 3
-CLASS_ROGUE = 4
 
 
 # Item types
@@ -105,7 +102,6 @@ ITEM_SUB_TYPE_SPIRIT = 14
 
 
 # Materials
-MATERIAL_NONE = 0
 MATERIAL_IRON = 1
 MATERIAL_WOOD = 2
 MATERIAL_GOLD = 11
@@ -309,10 +305,10 @@ class LootManager(object):
         ]
         
         weapons = {
-            CLASS_WARRIOR : warrior_weapons,
-            CLASS_RANGER : ranger_weapons,
-            CLASS_MAGE : mage_weapons,
-            CLASS_ROGUE : rogue_weapons
+            WARRIOR_CLASS : warrior_weapons,
+            RANGER_CLASS : ranger_weapons,
+            MAGE_CLASS : mage_weapons,
+            ROGUE_CLASS : rogue_weapons
         }
         
         warrior_armors = [
@@ -332,10 +328,10 @@ class LootManager(object):
         ]
         
         armors = {
-            CLASS_WARRIOR : warrior_armors,
-            CLASS_RANGER : ranger_armors,
-            CLASS_MAGE : mage_armors,
-            CLASS_ROGUE : rogue_armors
+            WARRIOR_CLASS : warrior_armors,
+            RANGER_CLASS : ranger_armors,
+            MAGE_CLASS : mage_armors,
+            ROGUE_CLASS : rogue_armors
         }
         
         warrior_gloves = [
@@ -355,10 +351,10 @@ class LootManager(object):
         ]
         
         gloves = {
-            CLASS_WARRIOR : warrior_gloves,
-            CLASS_RANGER : ranger_gloves,
-            CLASS_MAGE : mage_gloves,
-            CLASS_ROGUE : rogue_gloves
+            WARRIOR_CLASS : warrior_gloves,
+            RANGER_CLASS : ranger_gloves,
+            MAGE_CLASS : mage_gloves,
+            ROGUE_CLASS : rogue_gloves
         }
         
         warrior_boots = [
@@ -378,10 +374,10 @@ class LootManager(object):
         ]
         
         boots = {
-            CLASS_WARRIOR : warrior_boots,
-            CLASS_RANGER : ranger_boots,
-            CLASS_MAGE : mage_boots,
-            CLASS_ROGUE : rogue_boots
+            WARRIOR_CLASS : warrior_boots,
+            RANGER_CLASS : ranger_boots,
+            MAGE_CLASS : mage_boots,
+            ROGUE_CLASS : rogue_boots
         }
         
         warrior_shoulder_armors = [
@@ -401,10 +397,10 @@ class LootManager(object):
         ]
         
         shoulder_armors = {
-            CLASS_WARRIOR : warrior_shoulder_armors,
-            CLASS_RANGER : ranger_shoulder_armors,
-            CLASS_MAGE : mage_shoulder_armors,
-            CLASS_ROGUE : rogue_shoulder_armors
+            WARRIOR_CLASS : warrior_shoulder_armors,
+            RANGER_CLASS : ranger_shoulder_armors,
+            MAGE_CLASS : mage_shoulder_armors,
+            ROGUE_CLASS : rogue_shoulder_armors
         }
         
         warrior_amulets = [
@@ -424,10 +420,10 @@ class LootManager(object):
         ]
         
         amulets = {
-            CLASS_WARRIOR : warrior_amulets,
-            CLASS_RANGER : ranger_amulets,
-            CLASS_MAGE : mage_amulets,
-            CLASS_ROGUE : rogue_amulets
+            WARRIOR_CLASS : warrior_amulets,
+            RANGER_CLASS : ranger_amulets,
+            MAGE_CLASS : mage_amulets,
+            ROGUE_CLASS : rogue_amulets
         }
         
         warrior_rings = [
@@ -447,10 +443,10 @@ class LootManager(object):
         ]
         
         rings = {
-            CLASS_WARRIOR : warrior_rings,
-            CLASS_RANGER : ranger_rings,
-            CLASS_MAGE : mage_rings,
-            CLASS_ROGUE : rogue_rings,
+            WARRIOR_CLASS : warrior_rings,
+            RANGER_CLASS : ranger_rings,
+            MAGE_CLASS : mage_rings,
+            ROGUE_CLASS : rogue_rings,
         }
         
         self.__item_types = {
@@ -559,10 +555,10 @@ class LootManager(object):
         }
         
         weapons = {
-            CLASS_WARRIOR : warrior_weapons,
-            CLASS_RANGER : ranger_weapons,
-            CLASS_MAGE : mage_weapons,
-            CLASS_ROGUE : rogue_weapons
+            WARRIOR_CLASS : warrior_weapons,
+            RANGER_CLASS : ranger_weapons,
+            MAGE_CLASS : mage_weapons,
+            ROGUE_CLASS : rogue_weapons
         }
         
         materials_warrior_armor = [
@@ -598,10 +594,10 @@ class LootManager(object):
         }
         
         armors = {
-            CLASS_WARRIOR : warrior_armors,
-            CLASS_RANGER : ranger_armors,
-            CLASS_MAGE : mage_armors,
-            CLASS_ROGUE : rogue_armors
+            WARRIOR_CLASS : warrior_armors,
+            RANGER_CLASS : ranger_armors,
+            MAGE_CLASS : mage_armors,
+            ROGUE_CLASS : rogue_armors
         }
         
         materials_warrior_gloves = [
@@ -637,10 +633,10 @@ class LootManager(object):
         }
         
         gloves = {
-            CLASS_WARRIOR : warrior_gloves,
-            CLASS_RANGER : ranger_gloves,
-            CLASS_MAGE : mage_gloves,
-            CLASS_ROGUE : rogue_gloves
+            WARRIOR_CLASS : warrior_gloves,
+            RANGER_CLASS : ranger_gloves,
+            MAGE_CLASS : mage_gloves,
+            ROGUE_CLASS : rogue_gloves
         }
         
         materials_warrior_boots = [
@@ -676,10 +672,10 @@ class LootManager(object):
         }
         
         boots = {
-            CLASS_WARRIOR : warrior_boots,
-            CLASS_RANGER : ranger_boots,
-            CLASS_MAGE : mage_boots,
-            CLASS_ROGUE : rogue_boots
+            WARRIOR_CLASS : warrior_boots,
+            RANGER_CLASS : ranger_boots,
+            MAGE_CLASS : mage_boots,
+            ROGUE_CLASS : rogue_boots
         }
         
         materials_warrior_shoulder_armor = [
@@ -719,10 +715,10 @@ class LootManager(object):
         }
         
         shoulder_armors = {
-            CLASS_WARRIOR : warrior_shoulder_armors,
-            CLASS_RANGER : ranger_shoulder_armors,
-            CLASS_MAGE : mage_shoulder_armors,
-            CLASS_ROGUE : rogue_shoulder_armors
+            WARRIOR_CLASS : warrior_shoulder_armors,
+            RANGER_CLASS : ranger_shoulder_armors,
+            MAGE_CLASS : mage_shoulder_armors,
+            ROGUE_CLASS : rogue_shoulder_armors
         }
         
         materials_warrior_amulet = [
@@ -762,10 +758,10 @@ class LootManager(object):
         }
         
         amulets = {
-            CLASS_WARRIOR : warrior_amulets,
-            CLASS_RANGER : ranger_amulets,
-            CLASS_MAGE : mage_amulets,
-            CLASS_ROGUE : rogue_amulets
+            WARRIOR_CLASS : warrior_amulets,
+            RANGER_CLASS : ranger_amulets,
+            MAGE_CLASS : mage_amulets,
+            ROGUE_CLASS : rogue_amulets
         }
         
         materials_warrior_ring = [
@@ -805,10 +801,10 @@ class LootManager(object):
         }
         
         rings = {
-            CLASS_WARRIOR : warrior_rings,
-            CLASS_RANGER : ranger_rings,
-            CLASS_MAGE : mage_rings,
-            CLASS_ROGUE : rogue_rings
+            WARRIOR_CLASS : warrior_rings,
+            RANGER_CLASS : ranger_rings,
+            MAGE_CLASS : mage_rings,
+            ROGUE_CLASS : rogue_rings
         }
         
         self.__item_materials = {
