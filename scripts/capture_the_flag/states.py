@@ -1,6 +1,6 @@
 # The MIT License (MIT)
 #
-# Copyright (c) 2014 Bjoern Lange
+# Copyright (c) 2014-2015 Bjoern Lange
 #
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation
@@ -37,6 +37,11 @@ from cuwo.packet import SoundAction
 from cuwo.vector import Vector3
 
 
+from .constants import RELATION_FRIENDLY_PLAYER
+from .constants import RELATION_FRIENDLY
+from .constants import RELATION_HOSTILE
+
+
 # Sounds
 SOUND_LEVEL_UP = 29
 SOUND_MISSION_COMPLETE = 30
@@ -50,7 +55,6 @@ DEFAULT_REPLY = ('This command cannot be issued in the current state ' +
     'of the game.')
 FLAG_POLE_DISTANCE = 500000
 FLAG_CAPTURE_DISTANCE = 150000
-HEAL_AMOUNT = 50000
 
 
 # EntityUpdatePacket mask for transfer of the position
@@ -168,6 +172,11 @@ class GameState:
         """
         for p in players:
             p.send_chat(msg)
+            
+    def _set_relation_all(self, relation):
+        for p1 in self.server.players.values():
+            for p2 in self.server.players.values():
+                p1.entity.set_relation_to(p2.entity, relation)
 
         
 class PreGameState(GameState):
@@ -186,11 +195,8 @@ class PreGameState(GameState):
         ctfscript.flag_blue.pos = ctfscript.flag_pole_pos_blue
         ctfscript.flag_blue.carrier = None
         
-        hostile = ctfscript.hostile_between_matches
-        hostility = FRIENDLY_PLAYER_TYPE
-        if hostile:
-            hostility = ctfscript.hostility_between_matches
-        server.entity_manager.set_hostility_all(hostile, hostility)
+        relation = ctfscript.relation_between_matches
+        self._set_relation_all(relation)
         
     def startgame(self, match_mode='autobalance', point_count=1, use_last=False):
         """Method for handling a /startgame command.
@@ -216,8 +222,7 @@ class PreGameState(GameState):
                 self.ctfscript.game_state = GameAutobalancingState(
                     self.server, self.ctfscript, self, point_count)
                 
-            em = self.server.entity_manager
-            em.set_hostility_all(False, FRIENDLY_PLAYER_TYPE)
+            self._set_relation_all(RELATION_FRIENDLY_PLAYER)
             
             return 'Game starting...'
         else:
@@ -457,13 +462,12 @@ class GameRunningState(GameState):
         self.__points_needed = points
         self.__points_blue = 0
         self.__points_red = 0
-        em = self.server.entity_manager
-        em.set_hostility_all(False, ENTITY_HOSTILITY_FRIENDLY)
+        self._set_relation_all(RELATION_FRIENDLY_PLAYER)
         self.__make_friendly(self.__red)
         self.__make_friendly(self.__blue)
         self.__make_hostile(self.__red, self.__blue)
         for p in self.server.players.values():
-            p.entity.heal(HEAL_AMOUNT)
+            p.entity.heal(p.entity.get_max_hp())
         for child in ctfscript.children:
             child.init_game()
         self.server.send_chat('Go!')
@@ -476,11 +480,9 @@ class GameRunningState(GameState):
         players -- Players to make friendly
         
         """
-        em = self.server.entity_manager
         for p1 in players:
             for p2 in players:
-                em.set_hostility_id(p1.entity_id, p2.entity_id,
-                    False, ENTITY_HOSTILITY_FRIENDLY_PLAYER)
+                p1.entity.set_relation_to(p2.entity, RELATION_FRIENDLY_PLAYER)
                     
     def __make_hostile(self, players1, players2):
         """Makes the given player groups hostile to each other.
@@ -490,11 +492,9 @@ class GameRunningState(GameState):
         players2 -- Second group of players
         
         """
-        em = self.server.entity_manager
         for p1 in players1:
             for p2 in players2:
-                em.set_hostility_id(p1.entity_id, p2.entity_id,
-                    True, ENTITY_HOSTILITY_HOSTILE)
+                p1.entity.set_relation_both(p2.entity, RELATION_HOSTILE)
                     
     def __play_sound(self, index):
         """Plays a sound for all clients.
@@ -518,10 +518,8 @@ class GameRunningState(GameState):
         
         """
         self.__spectators.append(player)
-        em = self.server.entity_manager
         for p in self.server.players:
-            em.set_hostility_id(player.entity_id, p.entity_id,
-                False, ENTITY_HOSTILITY_FRIENDLY)
+            p.entity.set_relation_to(player, RELATION_FRIENDLY)
         
     def player_leave(self, player):
         """Method for handling a player leave event.

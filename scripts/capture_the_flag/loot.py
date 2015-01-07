@@ -1,6 +1,6 @@
 # The MIT License (MIT)
 #
-# Copyright (c) 2014 Bjoern Lange
+# Copyright (c) 2014-2015 Bjoern Lange
 #
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation
@@ -118,6 +118,11 @@ class LootManager(object):
     """Manager for loot."""
     def __init__(self):
         """Creates a new LootManager."""
+        # Configurable
+        # Rarity of items
+        # Types of items
+        # Reward spirits (True/False)
+        # Reward mana cubes (True/False)
         self.__loot = None
         self.loot_enabled = True
         self.__create_item_types()

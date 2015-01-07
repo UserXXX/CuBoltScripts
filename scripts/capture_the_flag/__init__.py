@@ -1,6 +1,6 @@
 # The MIT License (MIT)
 #
-# Copyright (c) 2014 Bjoern Lange
+# Copyright (c) 2014-2015 Bjoern Lange
 #
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation
@@ -72,8 +72,7 @@ CKEY_LOOTING_ENABLED = 'looting_enabled'
 CKEY_XP_ON_KILL = 'xp_on_kill'
 CKEY_XP_ON_WIN = 'xp_on_win'
 CKEY_SPEED_CAP = 'speed_cap'
-CKEY_HOSTILE_BETWEEN_MATCHES = 'hostile_between_matches'
-CKEY_HOSTILITY_BETWEEN_MATCHES = 'hostility_between_matches'
+CKEY_RELATION_BETWEEN_MATCHES = 'relation_between_matches'
 
 
 # Amount of XP a player receives if he kills another player with the
@@ -84,6 +83,22 @@ XP_ON_SAME_LEVEL = 25.0
 # Movement speed cap and min update time
 MOVEMENT_SPEED_CAP = 7500000
 MOVEMENT_SPEED_FPS = 1 / 60
+
+
+from .constants import RELATION_FRIENDLY_PLAYER
+from .constants import RELATION_FRIENDLY
+from .constants import RELATION_HOSTILE_PLAYER
+from .constants import RELATION_HOSTILE
+from .constants import RELATION_NEUTRAL
+
+
+STRING_RELATION_MAPPING = {
+    'friendly_player' : RELATION_FRIENDLY_PLAYER,
+    'friendly' : RELATION_FRIENDLY,
+    'hostile_player' : RELATION_HOSTILE_PLAYER,
+    'hostile' : RELATION_HOSTILE,
+    'neutral' : RELATION_NEUTRAL
+}
 
 
 class CaptureTheFlagConnectionScript(ConnectionScript):
@@ -178,6 +193,7 @@ class CaptureTheFlagScript(ServerScript):
     def on_load(self):
         """Handles the loading of this script."""
         self.__load_settings()
+        self.loot_manager = LootManager()
         error = self.load_config()
         if error is not None:
             print(('[ERROR][capture_the_flag]: %s' % error))
@@ -185,8 +201,6 @@ class CaptureTheFlagScript(ServerScript):
             self.server.unload_script('capture_the_flag')
         else:
             self.__create_flag_poles()
-            self.loot_manager = LootManager()
-            self.loot_manager.loot_enabled = self.loot_enabled
             self.game_state = PreGameState(self.server, self)
         
     def on_unload(self):
@@ -237,12 +251,9 @@ class CaptureTheFlagScript(ServerScript):
             if CKEY_SPEED_CAP not in c:
                 c[CKEY_SPEED_CAP] = True
                 save = True
-            if CKEY_HOSTILE_BETWEEN_MATCHES not in c:
-                c[CKEY_HOSTILE_BETWEEN_MATCHES] = False
-                save = True
-            if CKEY_HOSTILITY_BETWEEN_MATCHES not in c:
-                c[CKEY_HOSTILITY_BETWEEN_MATCHES] = \
-                    FRIENDLY_PLAYER_TYPE
+            if CKEY_RELATION_BETWEEN_MATCHES not in c:
+                c[CKEY_RELATION_BETWEEN_MATCHES] = \
+                    'friendly_player'
                 save = True
             
             # Check types
@@ -254,34 +265,31 @@ class CaptureTheFlagScript(ServerScript):
                 return 'Invalid value for %s.' % CKEY_XP_ON_WIN
             if not isinstance(c[CKEY_SPEED_CAP], bool):
                 return 'Invalid value for %s.' % CKEY_SPEED_CAP
-            if not isinstance(c[CKEY_HOSTILE_BETWEEN_MATCHES], bool):
-                return ('Invalid value for %s.' % \
-                    CKEY_HOSTILE_BETWEEN_MATCHES)
-            l = [FRIENDLY_PLAYER_TYPE, HOSTILE_TYPE, FRIENDLY_TYPE]
-            if c[CKEY_HOSTILITY_BETWEEN_MATCHES] not in l:
+            l = ['friendly_player', 'friendly', 'hostile_player', 'hostile', 'neutral']
+            if c[CKEY_RELATION_BETWEEN_MATCHES] not in l:
                 s = 'Invalid value for '
-                s = '%s%s.' % (s, CKEY_HOSTILITY_BETWEEN_MATCHES)
+                s = '%s%s.' % (s, CKEY_RELATION_BETWEEN_MATCHES)
                 return '%s Allowed values are %s.' % (s, str(l)[1:-1])
             
+            # Load config
             self.__config = c
+            self.loot_manager.loot_enabled = self.loot_enabled
             
             if save:
                 self.server.save_data(CONFIG_FILE, self.__config)
             
         except NameError as e:
-           return 'Error while parsing config file.'
+            return 'Error while parsing config file.'
            
     def apply_config(self):
         """Applies the current config. Called after reloading
         config.
         
         """
-        em = self.server.entity_manager
-        hostile = self.hostile_between_matches
-        hostility = FRIENDLY_PLAYER_TYPE
-        if hostile:
-            hostility = self.hostility_between_matches
-        em.set_hostility_all(hostile, hostility)
+        relation = self.relation_between_matches
+        for p1 in self.server.players:
+            for p2 in self.server.players:
+                p1.entity.set_relation_to(p2.entity, relation)
             
     def __save_settings(self):
         """Saves the settings to disk."""
@@ -408,28 +416,16 @@ class CaptureTheFlagScript(ServerScript):
         return self.__settings[CKEY_SPEED_CAP]
         
     @property
-    def hostile_between_matches(self):
-        """Gets whether players are hostile to each other when no
-        match is running.
+    def relation_between_matches(self):
+        """Gets the relation setting for players when no match
+        is running.
         
         Return value:
-            True, if players are hostile, otherwise False.
-            
-        """
-        return self.__config[CKEY_HOSTILE_BETWEEN_MATCHES]
-        
-    @property
-    def hostility_between_matches(self):
-        """Gets the hostility setting for players when no match
-        is running. Be aware that this will always be
-        FRIENDLY_PLAYER_TYPE if hostile_between_matches is set
-        to False.
-        
-        Return value:
-            Hostility constant (see cuwo.constants).
+            Relation constant (see cubolt.constants).
         
         """
-        return self.__config[CKEY_HOSTILITY_BETWEEN_MATCHES]
+        key = self.__config[CKEY_RELATION_BETWEEN_MATCHES]
+        return STRING_RELATION_MAPPING[key]
     
         
 def get_class():

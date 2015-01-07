@@ -1,6 +1,6 @@
 # The MIT License (MIT)
 #
-# Copyright (c) 2014 Bjoern Lange
+# Copyright (c) 2014-2015 Bjoern Lange
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -27,7 +27,9 @@
 More advanced PVP script than the cuwo's default one.
 """
 
+
 import os.path
+
 
 from cuwo.packet import EntityUpdate
 from cuwo.packet import KillAction
@@ -40,40 +42,75 @@ from cuwo.script import command
 from cuwo.script import admin
 
 
-ENTITY_HOSTILITY_FRIENDLY_PLAYER = 0
-ENTITY_HOSTILITY_HOSTILE = 1
-ENTITY_HOSTILITY_FRIENDLY = 2
-
-
 SAVE_FILE = 'advanced_pvp'
 
 
-KEY_PVP_ENABLED = 'pvp_enabled'
 KEY_NOTIFY_ON_KILL = 'notify_on_kill'
 KEY_GAIN_XP = 'gain_xp'
-KEY_PVP_DISPLAY = 'pvp_display'
+KEY_RELATION_MODE = 'relation_mode'
+
+
+# Relation constants from cubolt.constants
+RELATION_FRIENDLY_PLAYER = 10
+RELATION_FRIENDLY = 11
+RELATION_FRIENDLY_NAME = 12
+RELATION_HOSTILE_PLAYER = 13
+RELATION_HOSTILE = 14
+RELATION_NEUTRAL = 15
+RELATION_TARGET = 16
+
+
+RELATION_STRING_MAPPING = {
+    RELATION_FRIENDLY_PLAYER : 'friendly_player',
+    RELATION_FRIENDLY : 'friendly',
+    RELATION_HOSTILE_PLAYER : 'hostile_player',
+    RELATION_HOSTILE : 'hostile',
+    RELATION_NEUTRAL : 'neutral'
+}
+
+
+STRING_RELATION_MAPPING = {
+    'friendly_player' : RELATION_FRIENDLY_PLAYER,
+    'friendly' : RELATION_FRIENDLY,
+    'hostile_player' : RELATION_HOSTILE_PLAYER,
+    'hostile' : RELATION_HOSTILE,
+    'neutral' : RELATION_NEUTRAL
+}
 
 
 class PVPConnectionScript(ConnectionScript):
-    def on_join(self, event):
-        self.parent.update_hostilities()
-            
+    def __init__(self, parent, connection):
+        ConnectionScript.__init__(self, parent, connection)
+        self.__joined = False
+
+    def on_entity_update(self, event):
+        if not self.__joined:
+            self.parent.update_hostilities()
+            self.__joined = True
+
     def on_kill(self, event):
         # event is not called if an entity with a friendly display is killed
-        if self.parent.gain_xp:
-            kill_action = KillAction()
-            kill_action.entity_id = self.connection.entity.entity_id
-            kill_action.target_id = event.target.entity_id
-            kill_action.xp_gained = self.calculate_xp(self.connection.entity.level, event.target.level)
+        ce = self.connection.entity
+        te = event.target
+        if te is not NULL:
+            # self NPC check is not neccessary, but in view on entity AI
+            # implementation done here
+            if te.is_player() and ce.is_player():
+                if self.parent.gain_xp:
+                    kill_action = KillAction()
+                    kill_action.entity_id = ce.entity_id
+                    kill_action.target_id = te.entity_id
+                    kill_action.xp_gained = self.calculate_xp(self.connection.entity.level, event.target.level)
         
-            self.server.update_packet.kill_actions.append(kill_action)
+                    self.server.update_packet.kill_actions.append(kill_action)
         
-        if self.parent.notify_on_kill:
-            self.server.send_chat('%s killed %s!' % (self.connection.name, event.target.name))
+                if self.parent.notify_on_kill:
+                    self.server.send_chat('%s killed %s!' % (self.connection.name, event.target.name))
         
     # helper methods
     def calculate_xp(self, killer_level, killed_level):
-        return max(1, int(10.0 * float(killed_level) / float(killer_level)))        
+        return max(1, int(10.0 * float(killed_level) / float(killer_level)))
+
 
 class PVPScript(ServerScript):
     connection_class = PVPConnectionScript
@@ -81,52 +118,40 @@ class PVPScript(ServerScript):
     # events
     def on_load(self):
         self.settings = self.server.load_data(SAVE_FILE, {})
-        if KEY_PVP_ENABLED not in self.settings:
-            self.settings[KEY_PVP_ENABLED] = True
         if KEY_NOTIFY_ON_KILL not in self.settings:
             self.settings[KEY_NOTIFY_ON_KILL] = False
         if KEY_GAIN_XP not in self.settings:
             self.settings[KEY_GAIN_XP] = True
-        if KEY_PVP_DISPLAY not in self.settings:
-            self.settings[KEY_PVP_DISPLAY] = ENTITY_HOSTILITY_HOSTILE
-            
-        em = self.server.entity_manager
-        em.default_hostile = self.pvp_enabled
-        em.default_hostility = self.pvp_display_mode
+        if KEY_RELATION_MODE not in self.settings:
+            self.settings[KEY_RELATION_MODE] = 'hostile'
     
+    # cubolt events
+    def on_relation_changed(self, event):
+        from_entity = self.server.world.entities[event.entity_from_id]
+        to_entity = self.server.world.entities[event.entity_to_id]
+        relation = STRING_RELATION_MAPPING[self.relation_mode]
+        if from_entity.is_player() and to_entity.is_player() and \
+            relation != event.relation:
+            from_entity.set_relation_to(to_entity, relation)
+
     def get_mode(self, event):
-        if self.pvp_enabled:
+        rm = self.relation_mode
+        if rm != RELATION_FRIENDLY_PLAYER and rm != RELATION_FRIENDLY:
             return 'pvp'
         else:
             return 'default'
             
     def update_hostilities(self):
-        em = self.server.entity_manager
-        pvp = self.pvp_enabled
-        mode = self.pvp_display_mode
-        em.set_hostility_all(pvp, mode)
-        em.default_hostile = pvp
-        em.default_hostility = mode
+        relation = STRING_RELATION_MAPPING[self.relation_mode]
+        for p1 in self.server.players.values():
+            for p2 in self.server.players.values():
+                p1.entity.set_relation_to(p2.entity, relation)
             
     # helper methods
     def save_settings(self):
         if not os.path.exists('./save'):
             os.makedirs('./save')
         self.server.save_data(SAVE_FILE, self.settings)
-    
-    @property
-    def pvp_enabled(self):
-        return self.settings[KEY_PVP_ENABLED]
-        
-    @pvp_enabled.setter
-    def pvp_enabled(self, enabled):
-        self.settings[KEY_PVP_ENABLED] = enabled
-        self.save_settings()
-        self.update_hostilities()
-    
-    @pvp_enabled.deleter
-    def pvp_enabled(self):
-        del self.settings[KEY_PVP_ENABLED]
     
     @property
     def notify_on_kill(self):
@@ -155,60 +180,23 @@ class PVPScript(ServerScript):
         del self.settings[KEY_GAIN_XP]
     
     @property
-    def pvp_display_mode(self):
-        return self.settings[KEY_PVP_DISPLAY]
+    def relation_mode(self):
+        return self.settings[KEY_RELATION_MODE]
         
-    @pvp_display_mode.setter
-    def pvp_display_mode(self, display):
-        self.settings[KEY_PVP_DISPLAY] = display
+    @relation_mode.setter
+    def relation_mode(self, relation):
+        self.settings[KEY_RELATION_MODE] = relation
         self.save_settings()
         self.update_hostilities()
     
-    @pvp_display_mode.deleter
-    def pvp_display_mode(self):
-        del self.settings[KEY_PVP_DISPLAY]
+    @relation_mode.deleter
+    def relation_mode(self):
+        del self.settings[KEY_RELATION_MODE]
     
 
 def get_class():
     return PVPScript
- 
-# pvp commands
-@command
-def pvp(script):
-    pvp_script = script.server.scripts.advanced_pvp
-    if pvp_script.pvp_enabled:
-        return 'PVP mode is active.'
-    else:
-        return 'PVP mode is not active.'
-
-@command
-@admin
-def enablepvp(script):
-    pvp_script = script.server.scripts.advanced_pvp
-    if pvp_script.pvp_enabled:
-        return 'PVP is already enabled.'
-    else:
-        pvp_script.pvp_enabled = True
-        return 'PVP has been enabled.'
-
-@command
-@admin
-def disablepvp(script):
-    pvp_script = script.server.scripts.advanced_pvp
-    if not pvp_script.pvp_enabled:
-        return 'PVP is already disabled.'
-    else:
-        pvp_script.pvp_enabled = False
-        return 'PVP has been disabled.'
-
-@command
-@admin
-def togglepvp(script):
-    pvp_script = script.server.scripts.advanced_pvp
-    if pvp_script.pvp_enabled:
-        return disablepvp(script)
-    else:
-        return enablepvp(script)
+    
         
 # notify on kill commands
 @command
@@ -219,6 +207,7 @@ def notifyonkill(script):
     else:
         return 'Kills are not notified.'
         
+
 @command
 @admin
 def enablenotifyonkill(script):
@@ -229,6 +218,7 @@ def enablenotifyonkill(script):
         pvp_script.notify_on_kill = True
         return 'Kills are now notified.'
         
+
 @command
 @admin
 def disablenotifyonkill(script):
@@ -239,6 +229,7 @@ def disablenotifyonkill(script):
         pvp_script.notify_on_kill = False
         return 'Kills are no longer notified.'
         
+
 @command
 @admin
 def togglenotifyonkill(script):
@@ -247,6 +238,7 @@ def togglenotifyonkill(script):
         return disablenotifyonkill(script)
     else:
         return enablenotifyonkill(script)
+
 
 # gain xp commands        
 @command
@@ -257,6 +249,7 @@ def gainxp(script):
     else:
         return "Players don't gain xp on player kills."
         
+
 @command
 @admin
 def enablegainxp(script):
@@ -267,6 +260,7 @@ def enablegainxp(script):
         pvp_script.gain_xp = True
         return 'Players will now gain xp on player kills.'
         
+
 @command
 @admin
 def disablegainxp(script):
@@ -276,7 +270,8 @@ def disablegainxp(script):
     else:
         pvp_script.gain_xp = False
         return 'Players will no longer gain xp on player kills.'
-        
+       
+     
 @command
 @admin
 def togglegainxp(script):
@@ -286,32 +281,21 @@ def togglegainxp(script):
     else:
         return enablegainxp(script)
 
-# pvp displaymode command        
+
+# relation mode commands        
 @command
-def pvpdisplaymode(script):
+def relationmode(script):
     pvp_script = script.server.scripts.advanced_pvp
-    dm = pvp_script.pvp_display_mode
-    if dm == ENTITY_HOSTILITY_FRIENDLY_PLAYER:
-        return 'In pvp mode, players are displayed as friendly entities and are shown on the map (setting: friendlyplayer).'
-    elif dm == ENTITY_HOSTILITY_FRIENDLY:
-        return 'In pvp mode, players are displayed as friendly entities (setting: friendly).'
-    elif dm == ENTITY_HOSTILITY_HOSTILE:
-        return 'In pvp mode, players are displayed as hostile entities (setting: hostile).'
-    else:
-        return 'Unknown setting, value=%i' % dm
+    rm = pvp_script.relation_mode
+    return 'The current relation mode is: %s' % rm
+
 
 @command
 @admin
-def setpvpdisplaymode(script, display):
+def setrelationmode(script, relation):
     pvp_script = script.server.scripts.advanced_pvp
-    if display == 'friendlyplayer':
-        pvp_script.pvp_display_mode = ENTITY_HOSTILITY_FRIENDLY_PLAYER
-        return 'In pvp mode, players are now displayed as friendly entities and are shown on the map.'
-    elif display == 'friendly':
-        pvp_script.pvp_display_mode = ENTITY_HOSTILITY_FRIENDLY
-        return 'In pvp mode, players are now displayed as friendly entities.'
-    elif display == 'hostile':
-        pvp_script.pvp_display_mode = ENTITY_HOSTILITY_HOSTILE
-        return 'In pvp mode, players are now displayed as hostile entities.'
+    if relation in STRING_RELATION_MAPPING.keys():
+        pvp_script.relation_mode = relation
+        return 'Successful set relation mode to %s.' % relation
     else:
-        return 'Unknown mode: %s' % display
+        return 'Unknown mode: %s' % relation
