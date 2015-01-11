@@ -28,6 +28,7 @@
 
 import math
 import os.path
+import shutil
 from datetime import datetime
 
 
@@ -55,7 +56,8 @@ from .util import Flagpole
 
 # Path to save and config file
 SAVE_FILE = 'capture_the_flag'
-CONFIG_FILE = '../config/capture_the_flag'
+DEFAULT_CONFIG_FILE = 'scripts/capture_the_flag/default_config.py'
+CONFIG_FILE = 'config/capture_the_flag.py'
 
 
 # Keys used in settings dict
@@ -65,19 +67,6 @@ KEY_FLAG_POLE_BLUE_Y = 'flag_pole_blue_y'
 KEY_FLAG_POLE_RED_Y = 'flag_pole_red_y'
 KEY_FLAG_POLE_BLUE_Z = 'flag_pole_blue_z'
 KEY_FLAG_POLE_RED_Z = 'flag_pole_red_z'
-
-
-# Keys used in config dict
-CKEY_LOOTING_ENABLED = 'looting_enabled'
-CKEY_XP_ON_KILL = 'xp_on_kill'
-CKEY_XP_ON_WIN = 'xp_on_win'
-CKEY_SPEED_CAP = 'speed_cap'
-CKEY_RELATION_BETWEEN_MATCHES = 'relation_between_matches'
-
-
-# Amount of XP a player receives if he kills another player with the
-# same level
-XP_ON_SAME_LEVEL = 25.0
 
 
 # Movement speed cap and min update time
@@ -134,7 +123,8 @@ class CaptureTheFlagConnectionScript(ConnectionScript):
         
         """
         target_id = event.target.entity_id
-        if self.parent.xp_on_kill and target_id in self.server.players:
+        xp_on_kill = self.server.config.capture_the_flag.xp_on_kill
+        if xp_on_kill and target_id in self.server.players:
             entity_id = self.connection.entity_id
             kill_action = KillAction()
             kill_action.entity_id = entity_id
@@ -150,7 +140,7 @@ class CaptureTheFlagConnectionScript(ConnectionScript):
         event -- Further information about what happened
         
         """
-        if self.parent.speed_cap:
+        if self.server.config.capture_the_flag.speed_cap:
             if isinstance(self.parent.game_state, GameRunningState):
                 t = datetime.now()
                 pos = self.entity.pos
@@ -183,7 +173,8 @@ class CaptureTheFlagConnectionScript(ConnectionScript):
         
         """
         tmp = float(killed_level) / float(killer_level)
-        return max(1, int(XP_ON_SAME_LEVEL * tmp))
+        config = self.server.config
+        return max(1, int(config.capture_the_flag.xp_on_same_level * tmp))
 
 
 class CaptureTheFlagScript(ServerScript):
@@ -193,15 +184,10 @@ class CaptureTheFlagScript(ServerScript):
     def on_load(self):
         """Handles the loading of this script."""
         self.__load_settings()
-        self.loot_manager = LootManager()
-        error = self.load_config()
-        if error is not None:
-            print(('[ERROR][capture_the_flag]: %s' % error))
-            print('Disabled capture_the_flag.')
-            self.server.unload_script('capture_the_flag')
-        else:
-            self.__create_flag_poles()
-            self.game_state = PreGameState(self.server, self)
+        self.loot_manager = LootManager(self.server)
+        self.load_config()
+        self.__create_flag_poles()
+        self.game_state = PreGameState(self.server, self)
         
     def on_unload(self):
         """Handles the unloading of this script."""
@@ -231,62 +217,23 @@ class CaptureTheFlagScript(ServerScript):
             self.__settings[KEY_FLAG_POLE_BLUE_Z] = 0.0
                 
     def load_config(self):
-        """Loads the config from disk and sets default values if
-        not contained.
+        """Loads the config from disk and creates a default file if
+        none exists.
         
         """
         try:
-            c = self.server.load_data(CONFIG_FILE, {})
-            
-            save = False
-            if CKEY_LOOTING_ENABLED not in c:
-                c[CKEY_LOOTING_ENABLED] = True
-                save = True
-            if CKEY_XP_ON_KILL not in c:
-                c[CKEY_XP_ON_KILL] = True
-                save = True
-            if CKEY_XP_ON_WIN not in c:
-                c[CKEY_XP_ON_WIN] = False
-                save = True
-            if CKEY_SPEED_CAP not in c:
-                c[CKEY_SPEED_CAP] = True
-                save = True
-            if CKEY_RELATION_BETWEEN_MATCHES not in c:
-                c[CKEY_RELATION_BETWEEN_MATCHES] = \
-                    'friendly_player'
-                save = True
-            
-            # Check types
-            if not isinstance(c[CKEY_LOOTING_ENABLED], bool):
-                return 'Invalid value for %s.' % CKEY_LOOTING_ENABLED
-            if not isinstance(c[CKEY_XP_ON_KILL], bool):
-                return 'Invalid value for %s.' % CKEY_XP_ON_KILL
-            if not isinstance(c[CKEY_XP_ON_WIN], bool):
-                return 'Invalid value for %s.' % CKEY_XP_ON_WIN
-            if not isinstance(c[CKEY_SPEED_CAP], bool):
-                return 'Invalid value for %s.' % CKEY_SPEED_CAP
-            l = ['friendly_player', 'friendly', 'hostile_player', 'hostile', 'neutral']
-            if c[CKEY_RELATION_BETWEEN_MATCHES] not in l:
-                s = 'Invalid value for '
-                s = '%s%s.' % (s, CKEY_RELATION_BETWEEN_MATCHES)
-                return '%s Allowed values are %s.' % (s, str(l)[1:-1])
-            
-            # Load config
-            self.__config = c
-            self.loot_manager.loot_enabled = self.loot_enabled
-            
-            if save:
-                self.server.save_data(CONFIG_FILE, self.__config)
-            
-        except NameError as e:
-            return 'Error while parsing config file.'
+            self.server.config.capture_the_flag
+        except KeyError:
+            shutil.copyfile(DEFAULT_CONFIG_FILE, CONFIG_FILE)
+            self.server.config.capture_the_flag
            
     def apply_config(self):
         """Applies the current config. Called after reloading
         config.
         
         """
-        relation = self.relation_between_matches
+        config = self.server.config
+        relation = config.capture_the_flag.relation_between_matches
         for p1 in self.server.players:
             for p2 in self.server.players:
                 p1.entity.set_relation_to(p2.entity, relation)
@@ -374,58 +321,6 @@ class CaptureTheFlagScript(ServerScript):
         self.__settings[KEY_FLAG_POLE_BLUE_Z] = value.z
         self.flag_pole_blue.pos = value
         self.__save_settings()
-        
-    @property
-    def loot_enabled(self):
-        """Returns whether looting is enabled.
-        
-        Return value:
-        True, if looting is enabled, otherwise False
-        
-        """
-        return self.__settings[CKEY_LOOTING_ENABLED]
-        
-    @property
-    def xp_on_kill(self):
-        """Gets whether XP gainin on kill is enabled.
-        
-        Return value:
-        True, if XP gaining is enabled, otherwise False
-        
-        """
-        return self.__settings[CKEY_XP_ON_KILL]
-        
-    @property
-    def xp_on_win(self):
-        """Gets whether XP gaining on win is enabled.
-        
-        Return value:
-        True, if XP gaining is enabled, otherwise false
-        
-        """
-        return self.__settings[CKEY_XP_ON_WIN]
-        
-    @property
-    def speed_cap(self):
-        """Gets whether the speed cap for flag carriers is active.
-        
-        Return value:
-            True, if the speed cap is active, otherwise False.
-        
-        """
-        return self.__settings[CKEY_SPEED_CAP]
-        
-    @property
-    def relation_between_matches(self):
-        """Gets the relation setting for players when no match
-        is running.
-        
-        Return value:
-            Relation constant (see cubolt.constants).
-        
-        """
-        key = self.__config[CKEY_RELATION_BETWEEN_MATCHES]
-        return STRING_RELATION_MAPPING[key]
     
         
 def get_class():
@@ -481,12 +376,9 @@ def reloadconfig(script):
     """Command for reloading the config file."""
     ctfscript = script.server.scripts.capture_the_flag
     if isinstance(ctfscript.game_state, PreGameState):
-        error = ctfscript.load_config()
-        if error is None:
-            ctfscript.apply_config()
-            return 'Config reloaded successful.'
-        else:
-            return error
+        script.server.config.reload()
+        ctfscript.load_config()
+        return 'Config reloaded successful.'
     else:
         return ("This command can only be executed when no" +
             " match is running")

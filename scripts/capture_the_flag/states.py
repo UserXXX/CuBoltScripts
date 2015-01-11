@@ -195,7 +195,7 @@ class PreGameState(GameState):
         ctfscript.flag_blue.pos = ctfscript.flag_pole_pos_blue
         ctfscript.flag_blue.carrier = None
         
-        relation = ctfscript.relation_between_matches
+        relation = server.config.capture_the_flag.relation_between_matches
         self._set_relation_all(relation)
         
     def startgame(self, match_mode='autobalance', point_count=1, use_last=False):
@@ -402,7 +402,7 @@ class GameInitialisingState(GameState):
         
         lm = self.ctfscript.loot_manager
         lm.new_match()
-        if lm.loot_enabled:
+        if server.config.capture_the_flag.loot:
             self.server.send_chat(lm.pre_game_message)
         if points > 1:
             server.send_chat(('You need %i points to win the' + 
@@ -691,23 +691,24 @@ class GameRunningState(GameState):
         players -- Players who will gain the XP
         
         """
-        xp = (len(self.__red) + len(self.__blue)) * \
-            self.__points_needed
-        item = ItemData()
-        item.minus_modifier = 0
-        item.flags = 0
-        item.items = []
-        for _ in range(32):
-            item.items.append(ItemUpgrade())
-        item.type = 13
-        item.sub_type = 0
-        item.modifier = 1
-        item.rarity = 2
-        item.material = 3
-        item.level = xp
+        if self.server.config.capture_the_flag.xp_on_win:
+            xp = (len(self.__red) + len(self.__blue)) * \
+                self.__points_needed
+            item = ItemData()
+            item.minus_modifier = 0
+            item.flags = 0
+            item.items = []
+            for _ in range(32):
+                item.items.append(ItemUpgrade())
+            item.type = 13
+            item.sub_type = 0
+            item.modifier = 1
+            item.rarity = 2
+            item.material = 3
+            item.level = xp
         
-        for p in players:
-            p.give_item(item)
+            for p in players:
+                p.give_item(item)
             
     def _equals(self, v1, v2):
         """Checks if two vectors are equal.

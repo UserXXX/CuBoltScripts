@@ -116,15 +116,15 @@ ITEM_RARITY_RARE = 2
 
 class LootManager(object):
     """Manager for loot."""
-    def __init__(self):
+    def __init__(self, server):
         """Creates a new LootManager."""
         # Configurable
         # Rarity of items
         # Types of items
         # Reward spirits (True/False)
         # Reward mana cubes (True/False)
+        self.__server = server
         self.__loot = None
-        self.loot_enabled = True
         self.__create_item_types()
         self.__create_material_data()
         self.__loots = {
@@ -165,7 +165,7 @@ class LootManager(object):
         """
         if self.__loot is None:
             self.__loot = self.__calc_loot()
-        if self.loot_enabled:
+        if self.server.config.capture_the_flag.loot:
             for player in team:
                 player.give_item(self.__get_loot_item(player))
         self.__loot = None
@@ -189,8 +189,7 @@ class LootManager(object):
             item.items.append(ItemUpgrade())
         item.upgrade_count = 0
         if l >= LOOT_COMMON and l <= LOOT_LEGENDARY:
-            item.type = random.randint(ITEM_TYPE_WEAPON,
-                ITEM_TYPE_RING)
+            item.type = self.__get_item_type()
             item.sub_type = self.__get_sub_type(item.type, player)
             item.modifier = random.randint(1, 10)
             item.rarity = l
@@ -214,6 +213,34 @@ class LootManager(object):
             item.level = 0
         return item
             
+    def __get_item_type(self):
+        config = self.__server.config.capture_the_flag
+        types = [config.weapon_chance, config.armor_chance,
+                 config.gloves_chance, config.boots_chance,
+                 config.shoulder_armor_chance, config.amulet_chance,
+                 config.ring_chance]
+        type = random.randint(0, sum(types))
+        s = types[0]
+        if type < s:
+            return ITEM_TYPE_WEAPON
+        s += types[1]
+        if type < s:
+            return ITEM_TYPE_ARMOR
+        s += types[2]
+        if type < s:
+            return ITEM_TYPE_GLOVES
+        s += types[3]
+        if type < s:
+            return ITEM_TYPE_BOOTS
+        s += types[4]
+        if type < s:
+            return ITEM_TYPE_SHOULDER_ARMOR
+        s += types[5]
+        if type < s:
+            return ITEM_TYPE_AMULET
+        else:
+            return ITEM_TYPE_RING
+
     def __get_sub_type(self, type, player):
         """Gets a valid sub type for an item for a specified player
         and main type.
@@ -255,30 +282,59 @@ class LootManager(object):
         One of the LOOT_ constants
         
         """
-        l = random.randint(0, 200)
-        if l < 100:
-            return LOOT_COMMON
-        elif l < 150:
-            return LOOT_UNCOMMON
-        elif l < 165:
-            return LOOT_RARE
-        elif l < 170:
-            return LOOT_EPIC
-        elif l < 176:
-            return LOOT_LEGENDARY
-        elif l < 180:
+        config = self.__server.config.capture_the_flag
+        types = [config.item_chance, config.spirit_chance,
+                 config.mana_cube_chance]
+        type = random.randint(0, sum(types))
+        s = types[0]
+        if type < s: # item
+            return self.__get_loot_rarity()
+        s += types[1]
+        if type < s: # spirit
+            return self.__get_loot_spirit()
+        else: # mana cube
             return LOOT_MANA_CUBE
+    
+    def __get_loot_spirit(self):
+        config = self.__server.config.capture_the_flag
+        spirits = [config.fire_spirit_chance,
+                   config.unholy_spirit_chance,
+                   config.ice_spirit_chance,
+                   config.wind_spirit_chance]
+        spirit = random.randint(0, sum(spirits))
+        s = spirits[0]
+        if spirit < s:
+            return LOOT_SPIRIT_FIRE
+        s += spirits[1]
+        if spirit < s:
+            return LOOT_SPIRIT_UNHOLY
+        s += spirits[2]
+        if spirit < s:
+            return LOOT_SPIRIT_ICE
         else:
-            l = random.randint(0, 3)
-            if l == 0:
-                return LOOT_SPIRIT_FIRE
-            elif l == 0:
-                return LOOT_SPIRIT_WIND
-            elif l == 0:
-                return LOOT_SPIRIT_ICE
-            else:
-                return LOOT_SPIRIT_UNHOLY
-                
+            return LOOT_SPIRIT_WIND
+
+    def __get_loot_rarity(self):
+        config = self.__server.config.capture_the_flag
+        chances = [config.common_chance, config.uncommon_chance,
+                   config.rare_chance, config.epic_chance,
+                   config.legendary_chance]
+        rarity = random.randint(0, sum(chances))
+        s = chances[0]
+        if rarity < c:
+            return LOOT_COMMON
+        s += chances[1]
+        if rarity < c:
+            return LOOT_UNCOMMON
+        s += chances[2]
+        if rarity < c:
+            return LOOT_RARE
+        s += chances[3]
+        if rarity < c:
+            return LOOT_EPIC
+        else:
+            return LOOT_LEGENDARY
+                   
     def __create_item_types(self):
         """Initializes the item types."""
         warrior_weapons = [
