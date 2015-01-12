@@ -165,7 +165,7 @@ class LootManager(object):
         """
         if self.__loot is None:
             self.__loot = self.__calc_loot()
-        if self.server.config.capture_the_flag.loot:
+        if self.__server.config.capture_the_flag.loot:
             for player in team:
                 player.give_item(self.__get_loot_item(player))
         self.__loot = None
@@ -321,16 +321,16 @@ class LootManager(object):
                    config.legendary_chance]
         rarity = random.randint(0, sum(chances))
         s = chances[0]
-        if rarity < c:
+        if rarity < s:
             return LOOT_COMMON
         s += chances[1]
-        if rarity < c:
+        if rarity < s:
             return LOOT_UNCOMMON
         s += chances[2]
-        if rarity < c:
+        if rarity < s:
             return LOOT_RARE
         s += chances[3]
-        if rarity < c:
+        if rarity < s:
             return LOOT_EPIC
         else:
             return LOOT_LEGENDARY

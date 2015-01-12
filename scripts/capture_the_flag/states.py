@@ -197,6 +197,10 @@ class PreGameState(GameState):
         
         relation = server.config.capture_the_flag.relation_between_matches
         self._set_relation_all(relation)
+
+    def player_join(self, player):
+        relation = self.server.config.capture_the_flag.relation_between_matches
+        self._set_relation_all(relation)
         
     def startgame(self, match_mode='autobalance', point_count=1, use_last=False):
         """Method for handling a /startgame command.
@@ -353,6 +357,8 @@ class GameChooseState(GameState):
         
         """
         self.__to_choose.append(player)
+        relation = self.server.config.capture_the_flag.relation_between_matches
+        self._set_relation_all(relation)
         
     def player_leave(self, player):
         """Method for handling a player leave event.
@@ -440,6 +446,8 @@ class GameInitialisingState(GameState):
         
         """
         self.__spectators.append(player)
+        relation = self.server.config.capture_the_flag.relation_between_matches
+        self._set_relation_all(relation)
             
     def on_leave(self):
         """Mehtod for handling (any) players leave."""

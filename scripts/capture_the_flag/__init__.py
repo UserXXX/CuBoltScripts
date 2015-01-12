@@ -92,14 +92,20 @@ STRING_RELATION_MAPPING = {
 
 class CaptureTheFlagConnectionScript(ConnectionScript):
     """ConnectionScript handling a single players connection."""
-    def on_join(self, event):
-        """Handles cuwo's on_join event.
+    def __init__(self, parent, connection):
+        self.__joined = False
+        return super().__init__(parent, connection)
+
+    def on_entity_update(self, event):
+        """Handles cuwo's on_entity_update event.
         
         Keyword arguments:
         event -- Further information about what happened
         
         """
-        self.parent.game_state.player_join(self.connection)
+        if not self.__joined:
+            self.__joined = True
+            self.parent.game_state.player_join(self.connection)
     
     def on_unload(self):
         """Handles cuwo's on_unload event."""
@@ -226,6 +232,11 @@ class CaptureTheFlagScript(ServerScript):
         except KeyError:
             shutil.copyfile(DEFAULT_CONFIG_FILE, CONFIG_FILE)
             self.server.config.capture_the_flag
+
+        r = self.server.config.capture_the_flag.relation_between_matches
+        for p1 in self.server.players.values():
+            for p2 in self.server.players.values():
+                p1.entity.set_relation_to(p2.entity, r)
            
     def apply_config(self):
         """Applies the current config. Called after reloading
