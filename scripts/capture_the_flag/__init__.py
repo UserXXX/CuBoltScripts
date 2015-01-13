@@ -32,10 +32,12 @@ import shutil
 from datetime import datetime
 
 
+from cuwo import static
+
+
 from cuwo.constants import FRIENDLY_PLAYER_TYPE
 from cuwo.constants import HOSTILE_TYPE
 from cuwo.constants import FRIENDLY_TYPE
-from cuwo.packet import KillAction
 from cuwo.script import admin
 from cuwo.script import command
 from cuwo.script import ConnectionScript
@@ -94,6 +96,7 @@ class CaptureTheFlagConnectionScript(ConnectionScript):
     """ConnectionScript handling a single players connection."""
     def __init__(self, parent, connection):
         self.__joined = False
+        self.__last_hp = 0
         return super().__init__(parent, connection)
 
     def on_entity_update(self, event):
@@ -106,6 +109,13 @@ class CaptureTheFlagConnectionScript(ConnectionScript):
         if not self.__joined:
             self.__joined = True
             self.parent.game_state.player_join(self.connection)
+            self.__last_hp = self.entity.hp
+            self.old_pos = self.entity.pos
+            self.old_time = datetime.now()
+        else:
+            if self.__last_hp <= 0 and self.entity.hp > 0:
+                self.parent.game_state.on_respawn(self.entity)
+            self.__last_hp = self.entity.hp
     
     def on_unload(self):
         """Handles cuwo's on_unload event."""
@@ -131,13 +141,8 @@ class CaptureTheFlagConnectionScript(ConnectionScript):
         target_id = event.target.entity_id
         xp_on_kill = self.server.config.capture_the_flag.xp_on_kill
         if xp_on_kill and target_id in self.server.players:
-            entity_id = self.connection.entity_id
-            kill_action = KillAction()
-            kill_action.entity_id = entity_id
-            kill_action.target_id = target_id
-            xp = self.__calculate_xp(self.entity.level, event.target.level)
-            kill_action.xp_gained = xp
-            self.server.update_packet.kill_actions.append(kill_action)
+            entity = self.connection.entity
+            self.parent.game_state.on_kill(entity, event.target)
             
     def on_pos_update(self, event):
         """Handles a position update of this player.
@@ -147,40 +152,24 @@ class CaptureTheFlagConnectionScript(ConnectionScript):
         
         """
         if self.server.config.capture_the_flag.speed_cap:
-            if isinstance(self.parent.game_state, GameRunningState):
-                t = datetime.now()
-                pos = self.entity.pos
-                x = self.old_pos.x - pos.x
-                y = self.old_pos.y - pos.y
-                z = self.old_pos.z - pos.z
-                dif = math.sqrt(x*x + y*y + z*z)
-                elapsed = (t - self.old_time).total_seconds()
-                if elapsed > MOVEMENT_SPEED_FPS:
-                    average_speed = dif / elapsed
-                    if average_speed > MOVEMENT_SPEED_CAP:
-                        self.parent.game_state.too_fast(self.connection)
-                    self.old_pos = pos
-                    self.old_time = t
+            t = datetime.now()
+            pos = self.entity.pos
+            x = self.old_pos.x - pos.x
+            y = self.old_pos.y - pos.y
+            z = self.old_pos.z - pos.z
+            dif = math.sqrt(x*x + y*y + z*z)
+            elapsed = (t - self.old_time).total_seconds()
+            if elapsed > MOVEMENT_SPEED_FPS:
+                average_speed = dif / elapsed
+                if average_speed > MOVEMENT_SPEED_CAP:
+                    self.parent.game_state.too_fast(self.connection)
+                self.old_pos = pos
+                self.old_time = t
             
     def init_game(self):
         """Initializes this player for a new game."""
         self.old_time = datetime.now()
         self.old_pos = self.connection.entity.pos
-        
-    def __calculate_xp(self, killer_level, killed_level):
-        """Calculates the amount of XP a player gains for a kill.
-        
-        Keyword arguments:
-        killer_level -- Level of the killing entity
-        killed_level -- Level of the killed entity
-        
-        Return value:
-        The amount of XP the killer gains
-        
-        """
-        tmp = float(killed_level) / float(killer_level)
-        config = self.server.config
-        return max(1, int(config.capture_the_flag.xp_on_same_level * tmp))
 
 
 class CaptureTheFlagScript(ServerScript):
@@ -439,3 +428,27 @@ def join(script, team=None):
         else:
             ctfscript = script.server.scripts.capture_the_flag
             return ctfscript.game_state.join(player, team)
+
+
+def tpTo(ctfscript, player, location):
+    if not isinstance(ctfscript.game_state, GameRunningState):
+        if player is None:
+            return "This command can't be executed from console."
+        else:
+            player.entity.teleport(location)
+    else:
+        return 'You can only teleport if no game is currently running.'
+
+
+@command
+def tptoredflag(script):
+    ctfscript = script.server.scripts.capture_the_flag
+    player = script.get_player(None)
+    return tpTo(ctfscript, player, ctfscript.flag_pole_pos_red)
+
+
+@command
+def tptoblueflag(script):
+    ctfscript = script.server.scripts.capture_the_flag
+    player = script.get_player(None)
+    return tpTo(ctfscript, player, ctfscript.flag_pole_pos_blue)

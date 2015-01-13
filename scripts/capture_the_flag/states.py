@@ -91,6 +91,16 @@ class GameState:
         
         """
         return True
+
+    def on_kill(self, killer, killed):
+        """Method for handling a kill event.
+
+        Keyword arguments:
+        killer -- Killing entity
+        killed -- Killed entity
+
+        """
+        pass
         
     def startgame(self, param1=None, param2=None, param3=None):
         """Method for handling a /startgame command.
@@ -145,6 +155,14 @@ class GameState:
         
         """
         pass
+
+    def on_respawn(self, entity):
+        """Called when a player respawned.
+        
+        Keyword arguments:
+        entity -- The respawned entity.
+        
+        """
             
     def _distance(self, v1, v2):
         """Calculates the distance between two vectors.
@@ -177,6 +195,21 @@ class GameState:
         for p1 in self.server.players.values():
             for p2 in self.server.players.values():
                 p1.entity.set_relation_to(p2.entity, relation)
+        
+    def _calculate_xp(self, killer_level, killed_level):
+        """Calculates the amount of XP a player gains for a kill.
+        
+        Keyword arguments:
+        killer_level -- Level of the killing entity
+        killed_level -- Level of the killed entity
+        
+        Return value:
+        The amount of XP the killer gains
+        
+        """
+        tmp = float(killed_level) / float(killer_level)
+        config = self.server.config
+        return max(1, int(config.capture_the_flag.xp_on_same_level * tmp))
 
         
 class PreGameState(GameState):
@@ -474,10 +507,16 @@ class GameRunningState(GameState):
         self.__make_friendly(self.__red)
         self.__make_friendly(self.__blue)
         self.__make_hostile(self.__red, self.__blue)
-        for p in self.server.players.values():
+        
+        for p in blue:
+            p.entity.teleport(ctfscript.flag_pole_pos_blue)
             p.entity.heal(p.entity.get_max_hp())
-        for child in ctfscript.children:
-            child.init_game()
+        for p in red:
+            p.entity.teleport(ctfscript.flag_pole_pos_red)
+            p.entity.heal(p.entity.get_max_hp())
+        for c in ctfscript.children:
+            c.init_game()
+
         self.server.send_chat('Go!')
         self.__play_sound(SOUND_EXPLOSION)
         
@@ -566,6 +605,22 @@ class GameRunningState(GameState):
         
         """
         return attacker not in self.__spectators
+
+    def on_kill(self, killer, killed):
+        """Method for handling a kill event.
+
+        Keyword arguments:
+        killer -- Killing entity
+        killed -- Killed entity
+
+        """
+        if self.server.config.capture_the_flag.xp_on_kill:
+            kill_action = KillAction()
+            kill_action.entity_id = killer.entity_id
+            kill_action.target_id = killed.entity_id
+            xp = self._calculate_xp(killer.level, killed.level)
+            kill_action.xp_gained = xp
+            self.server.update_packet.kill_actions.append(kill_action)
         
     def too_fast(self, player):
         """Method for handling a player moving too fast.
@@ -582,6 +637,20 @@ class GameRunningState(GameState):
             s.flag_blue.carrier = None
             self.server.send_chat('The blue flag got dropped!')
         
+    def on_respawn(self, entity):
+        """Called when a player respawned.
+        
+        Keyword arguments:
+        entity -- The respawned entity.
+        
+        """
+        s = self.ctfscript
+        player = self.server.players[entity.entity_id]
+        if player in self.__blue:
+            entity.teleport(s.flag_pole_pos_blue)
+        elif player in self.__red:
+            entity.teleport(s.flag_pole_pos_red)
+
     def update(self):
         """Method for handling update logic."""
         s = self.ctfscript
