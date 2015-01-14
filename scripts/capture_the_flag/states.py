@@ -27,8 +27,11 @@
 """
 
 
+from datetime import datetime
 import math
 
+
+from cuwo.constants import BLOCK_SCALE
 from cuwo.constants import FRIENDLY_PLAYER_TYPE
 from cuwo.entity import ItemData
 from cuwo.entity import ItemUpgrade
@@ -448,28 +451,31 @@ class GameInitialisingState(GameState):
                 ' match!') % points)
         else:
             server.send_chat('First flag stolen wins!')
-        self._send_chat('Please go to the red base.', red)
-        self._send_chat('Please go to the blue base.', blue)
+        self._send_chat('You are in the red team.', red)
+        self._send_chat('You are in the blue team.', blue)
         server.send_chat('The game is about to begin!')
+        self.__counter = 11.0
+        self.__last_time = datetime.now()
         
     def update(self):
         """Method for handling update logic."""
-        rfpos = self.ctfscript.flag_pole_red.pos
         s = self.ctfscript
         for p in self.__spectators:
             p.entity.pos = Vector3(0, 0, 0)
             p.entity.mask |= MASK_POSITION
-        for p in self.__red:
-            pos = p.position
-            if self._distance(pos, rfpos) > FLAG_POLE_DISTANCE:
-                return None
-        bfpos = self.ctfscript.flag_pole_blue.pos
-        for p in self.__blue:
-            pos = p.position
-            if self._distance(pos, bfpos) > FLAG_POLE_DISTANCE:
-                return None
-        s.game_state = GameRunningState(self.server, s, self.__red,
-            self.__blue, self.__spectators, self.__points)
+
+        now = datetime.now()
+        dif = (now - self.__last_time).total_seconds()
+        self.__last_time = now
+        last_counter = self.__counter
+        self.__counter = last_counter - dif
+        new_ceil = math.ceil(self.__counter)
+        old_floor = math.floor(last_counter)
+        if new_ceil == old_floor and new_ceil > 0 and new_ceil < 11:
+            self.server.send_chat('%i' % new_ceil)
+        if self.__counter < 0:
+            s.game_state = GameRunningState(self.server, s, self.__red,
+                self.__blue, self.__spectators, self.__points)
     
     def player_join(self, player):
         """Method for handling a player join event.
@@ -508,17 +514,26 @@ class GameRunningState(GameState):
         self.__make_friendly(self.__blue)
         self.__make_hostile(self.__red, self.__blue)
         
+        fpb = ctfscript.flag_pole_pos_blue
+        fpr = ctfscript.flag_pole_pos_red
+        self.__arena_center = fpr.xy + 0.5 * (fpb.xy - fpr.xy)
+        self.__arena_size = 2 * abs(fpr.xy - fpb.xy)
+        
         for p in blue:
-            p.entity.teleport(ctfscript.flag_pole_pos_blue)
+            p.entity.teleport(fpb)
             p.entity.heal(p.entity.get_max_hp())
+            p.port_immune_time = 0
         for p in red:
-            p.entity.teleport(ctfscript.flag_pole_pos_red)
+            p.entity.teleport(fpr)
             p.entity.heal(p.entity.get_max_hp())
+            p.port_immune_time = 0
         for c in ctfscript.children:
             c.init_game()
 
         self.server.send_chat('Go!')
         self.__play_sound(SOUND_EXPLOSION)
+
+        self.__last_time = datetime.now()
         
     def __make_friendly(self, players):
         """Makes the given players friendly to each other.
@@ -646,6 +661,7 @@ class GameRunningState(GameState):
         """
         s = self.ctfscript
         player = self.server.players[entity.entity_id]
+        player.port_immune_time = 3.0
         if player in self.__blue:
             entity.teleport(s.flag_pole_pos_blue)
         elif player in self.__red:
@@ -666,6 +682,26 @@ class GameRunningState(GameState):
         for p in self.__spectators:
             p.entity.pos = Vector3(0, 0, 0)
             p.entity.mask |= MASK_POSITION
+
+        now = datetime.now()
+        dif = (now - self.__last_time).total_seconds()
+        self.__last_time = now
+
+        for p in (self.__red + self.__blue):
+            if p.port_immune_time > 0:
+                p.port_immune_time = p.port_immune_time - dif
+                continue
+
+            if abs(p.entity.pos.xy - self.__arena_center) > self.__arena_size:
+                # Out of arena
+                to_center = self.__arena_center - p.entity.pos.xy
+                to_center.normalize()
+                to_center = to_center * 20 * BLOCK_SCALE
+                pos = p.entity.pos
+                new_pos = Vector3(pos.x + to_center.x, pos.y + to_center.y, 0)
+                world = self.ctfscript.world
+                new_pos.z = world.get_height(new_pos.xy) or pos.z
+                p.entity.teleport(new_pos)
         
         if self.__handle_team(r, b, fr, fpr, fpb):
             self.__points_blue = self.__points_blue + 1
