@@ -218,7 +218,7 @@ class CaptureTheFlagScript(ServerScript):
         """
         try:
             self.server.config.capture_the_flag
-        except KeyError:
+        except (KeyError, FileNotFoundError):
             shutil.copyfile(DEFAULT_CONFIG_FILE, CONFIG_FILE)
             self.server.config.capture_the_flag
 
