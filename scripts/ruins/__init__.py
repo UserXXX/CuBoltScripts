@@ -51,21 +51,26 @@ CONFIG_FILE = 'config/ruins.py'
 
 
 class DefaultModelLoader:
+    """Default model loader, holding all necessary methods."""
     def __init__(self, server, path):
+        """Creates a new DefaultModelLoader."""
         self.server = server
         self.path = path
 
     def load_model(self):
+        """Loads the model described by the path given to __init__."""
         factory = self.server.cubolt_factory
         m = factory.load_model(self.path)
         self.post_process(m)
         return m
 
     def post_process(self, model):
+        """Post processes the loaded model."""
         pass
 
 
 class RotLeftModelLoader(DefaultModelLoader):
+    """Model loader that rotates the model 90 degrees left after loading."""
     def __init__(self, server, path):
         DefaultModelLoader.__init__(self, server, path)
 
@@ -74,6 +79,7 @@ class RotLeftModelLoader(DefaultModelLoader):
 
         
 class RotRightModelLoader(DefaultModelLoader):
+    """Model loader that rotates the model 90 degrees right after loading."""
     def __init__(self, server, path):
         DefaultModelLoader.__init__(self, server, path)
 
@@ -82,6 +88,7 @@ class RotRightModelLoader(DefaultModelLoader):
 
 
 class Rot180ModelLoader(DefaultModelLoader):
+    """Model loader that rotates the model for 180 degrees after loading."""
     def __init__(self, server, path):
         DefaultModelLoader.__init__(self, server, path)
 
@@ -90,6 +97,7 @@ class Rot180ModelLoader(DefaultModelLoader):
 
 
 class MirrorXModelLoader(DefaultModelLoader):
+    """Model loader that mirrors the model at the x plane after loading."""
     def __init__(self, server, path):
         DefaultModelLoader.__init__(self, server, path)
 
@@ -98,6 +106,7 @@ class MirrorXModelLoader(DefaultModelLoader):
 
 
 class MirrorYModelLoader(DefaultModelLoader):
+    """Model loader that mirrors the model at the y plane after loading."""
     def __init__(self, server, path):
         DefaultModelLoader.__init__(self, server, path)
 
@@ -106,13 +115,17 @@ class MirrorYModelLoader(DefaultModelLoader):
 
 
 class RuinsScript(ServerScript):
+    """Main script."""
     def on_load(self):
+        """Initializes the script."""
+        # Try to load the config and copy the default one if it fails
         try:
             self.server.config.ruins
         except (KeyError, FileNotFoundError):
             shutil.copyfile(DEFAULT_CONFIG_FILE, CONFIG_FILE)
             self.server.config.ruins
 
+        # Get the seed and create the model loaders
         self.seed = int(self.server.config.base.seed)
         self.model_loaders = []
         files = [join(MODEL_PATH, f) for f in listdir(MODEL_PATH)
@@ -128,11 +141,23 @@ class RuinsScript(ServerScript):
             self.model_loaders.append(MirrorYModelLoader(server, file))
 
     def on_chunk_load(self, event):
+        """Called when a chunk has finished loading. This is a CuBolt event.
+        
+        Keyword arguments:
+        event -- The event.
+
+        """
         chunk = event.chunk
+        # Get the grid noise value for this chunk
         n = self.noise(int(chunk.pos.x), int(chunk.pos.y))
+        # Only if this value is over the threshold, try to spawn a ruin
         if n > self.server.config.ruins.threshold:
             index = n % len(self.model_loaders)
+
+            # Load the chosen model via it's model loader instance
             model = self.model_loaders[index].load_model()
+
+            # Calculate the models bounds within the chunk
             lower_x = self.noise(int(chunk.pos.x) + 21, int(chunk.pos.y) - 42)
             lower_y = self.noise(int(chunk.pos.x) - 42, int(chunk.pos.y) + 21)
             lower_x = min(lower_x, int(256 - model.size.x))
@@ -144,12 +169,25 @@ class RuinsScript(ServerScript):
             lower_z, upper_z = self.get_heights(chunk, lower_x, lower_y,
                                                 upper_x, upper_y)
 
+            # If the height difference is too large (e.g. the model
+            # ranges over a cliff or hang) no ruin is generated 
             if (upper_z - lower_z) < 0.4 * model.size.z:
+                # Calculate the absolute world position and place the model
                 lx = lower_x + 256 * chunk.pos.x
                 ly = lower_y + 256 * chunk.pos.y
                 model.place_in_world(lx, ly, lower_z, 1)
 
     def get_heights(self, chunk, lx, ly, ux, uy):
+        """Gets the minimum and maximum heights in an area of a chunk.
+        
+        Keyword arguments:
+        chunk -- The chunk.
+        lx -- Lower x coordinate.
+        ly -- Lower y coordinate.
+        ux -- Upper x coordinate.
+        uy -- Upper y coordinate.
+
+        """
         min = 100000
         max = 0
         cd = chunk.data
@@ -168,6 +206,12 @@ class RuinsScript(ServerScript):
         return (min, max)
 
     def hash_32_shift(self, key):
+        """Int hash function, range limited to 128.
+        
+        Keyword arguments:
+        key -- Key to hash.
+
+        """
         key = int(~key + int(key << 15))
         key = int(key ^ int(key >> 12))
         key = int(key + int(key << 2))
@@ -177,6 +221,13 @@ class RuinsScript(ServerScript):
         return key % 128
 
     def noise(self, x, y):
+        """Seeded grid noise function, based on an int hash.
+        
+        Keyword arguments:
+        x -- X coordinate.
+        y -- Y coordinate.
+
+        """
         y_hash = self.hash_32_shift(y)
         x_hash = self.hash_32_shift(x + y_hash)
         return self.hash_32_shift(self.seed + x_hash)
