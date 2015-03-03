@@ -195,10 +195,10 @@ class RuinsScript(ServerScript):
             for y in range(ly, uy + 1):
                 h = cd.get_height(x, y)
                 col = cd.get_column(x, y)
-                type = col.get_block(h - 1)[1]
+                type = col.get_block(h - 1).type
                 while type in IGNORED_TYPES:
                     h = h - 1
-                    type = col.get_block(h - 1)[1]
+                    type = col.get_block(h - 1).type
                 if h < min:
                     min = h
                 if h > max:
